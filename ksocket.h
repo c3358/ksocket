@@ -4,7 +4,7 @@
 typedef int kboolean;
 
 //套接字接收数据的缓冲区
-#define KS_SOCKET_CONTEXT_RDBUF_SIZE 8192
+#define KS_SOCKET_CONTEXT_RDBUF_SIZE 4096
 //环形BUFFER的数据缓冲大小
 #define KS_CIRCULAR_BUFFER_BLOCK_SIZE 4096
 //普通buffer的默认数据大小
@@ -130,8 +130,11 @@ struct ks_socket_context
 	//user data
 	void *data;
 	
-	//是否监听者
-	int is_listener;
+	//排除在链接数之外的对象
+	int exclude;
+    
+    //是否客户端
+    int client;
 	
 	//连接状态的列表位置
 	struct list_head entry;
@@ -263,7 +266,7 @@ void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size); //将�
 void *ks_buffer_getdata(struct ks_buffer *buffer); //获取buffer的数据指针
 size_t ks_buffer_size(struct ks_buffer *buffer); //获取buffer的大小
 void ks_buffer_reset(struct ks_buffer *buffer); //重置buffer信息释放data2
-
+void ks_buffer_reserve(struct ks_buffer *buffer, size_t size); //预留缓冲区大小
 
 /**
  * ks_circular_buffer functions
@@ -295,20 +298,39 @@ void ks_table_enum(struct ks_table *table, ks_table_callback cb,void *user_arg);
  * ks_socket_container functions
  */
 void INIT_KS_SOCKET_CONTAINER(struct ks_socket_container *container, uv_loop_t *loop, struct ks_socket_callback *callback, int max_connections, int initial_socket_count, int max_slots, int init_buffers_count, int init_writereq_count);
+
+//socket context引用
 struct ks_socket_context* ks_socket_refernece(struct ks_socket_container *container, struct ks_socket_context *context);
 void ks_socket_derefernece(struct ks_socket_container *container, struct ks_socket_context *context);
+
+//服务器监听函数
 int ks_socket_addlistener_ipv4(struct ks_socket_container *container, const char *addr, int port);
 int ks_socket_addlistener_ipv6(struct ks_socket_container *container, const char *addr, int port);
 int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char *name);
+
+//客户端连接服务器
 int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port);
 int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port);
 int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name);
+
+//ks_buffer对象池的引用
 struct ks_buffer *ks_socket_buffer_refernece(struct ks_socket_container *container, struct ks_buffer *buffer);
 void ks_socket_buffer_derefernece(struct ks_socket_container *container, struct ks_buffer *buffer);
+
+//发送数据包
 int ks_socket_send(struct ks_socket_context *context, struct ks_buffer *buffer);
+
+//发送EOF到远程，通知连接断开，此操作会将数据完整的发送到客户端后进行断开
 int ks_socket_shutdown(struct ks_socket_context *context);
+
+//直接关闭连接，此操作不会将数据发送到客户端而是直接断开
 int ks_socket_close(struct ks_socket_context *context);
+
+//停止所有服务器对象
 int ks_socket_stop(struct ks_socket_container *container);
+
+//获取一个服务器socket对象
+struct ks_socket_context *ks_socket_find(struct ks_socket_container *container, uint64_t uniqid);
 
 kboolean ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr);
 kboolean ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr);

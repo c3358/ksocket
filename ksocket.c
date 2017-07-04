@@ -15,6 +15,8 @@
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif	/* MAX */
 
+
+
 struct ks_buffer *ks_buffer_create()
 {
     struct ks_buffer *buffer = calloc(1, sizeof(struct ks_buffer));
@@ -59,10 +61,9 @@ kboolean ks_buffer_decref(struct ks_buffer *buffer)
     return 0;
 }
 
-void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size)
+void ks_buffer_reserve(struct ks_buffer *buffer, size_t size)
 {
     size_t totalsize;
-    
     
     totalsize = buffer->usingsize + size;
     
@@ -70,27 +71,33 @@ void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size)
     {
         if(totalsize > buffer->totalsize)
         {
-            buffer->data2 = realloc(buffer->data2, align_size(totalsize, KS_BUFFER_DEFAULT_DATA_SIZE));
+            buffer->totalsize = align_size(totalsize, KS_BUFFER_DEFAULT_DATA_SIZE);
+            buffer->data2 = realloc(buffer->data2, buffer->totalsize);
         }
-        
-        memmove(&buffer->data2[buffer->usingsize], data, size);
-        buffer->usingsize = totalsize;
     }
     else
     {
         if(buffer->totalsize < totalsize)
         {
-            buffer->data2 = malloc(align_size(totalsize, KS_BUFFER_DEFAULT_DATA_SIZE));
+            buffer->totalsize = align_size(totalsize, KS_BUFFER_DEFAULT_DATA_SIZE);
+            buffer->data2 = malloc(buffer->totalsize);
             memcpy(buffer->data2, buffer->data, buffer->usingsize);
-            memcpy(&buffer->data2[buffer->usingsize], data, size);
-            buffer->usingsize = totalsize;
-        }
-        else
-        {
-            memcpy(&buffer->data[buffer->usingsize], data, size);
-            buffer->usingsize = totalsize;
         }
     }
+}
+
+void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size)
+{
+    unsigned char *dst;
+    
+    ks_buffer_reserve(buffer, size);
+    
+    dst = ks_buffer_getdata(buffer);
+    dst += buffer->usingsize;
+    
+    memcpy(dst, data, size);
+    
+    buffer->usingsize += size;
 }
 
 void *ks_buffer_getdata(struct ks_buffer *buffer)
@@ -121,8 +128,6 @@ void ks_buffer_reset(struct ks_buffer *buffer)
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-
-
 void INIT_KS_CIRCULAR_BUFFER(struct ks_circular_buffer *circular_buffer)
 {
     INIT_LIST_HEAD(&circular_buffer->head);
@@ -151,8 +156,6 @@ void ks_circular_buffer_destroy(struct ks_circular_buffer *circular_buffer)
         list_del(&buffer_block->entry);
         free(buffer_block);
     }
-    
-    free(circular_buffer);
 }
 
 void ks_circular_buffer_queue(struct ks_circular_buffer *circular_buffer, const void *data, size_t size)
@@ -232,7 +235,7 @@ kboolean ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffe
         }
     }
     
-    return 0;
+    return 1;
 }
 
 kboolean ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size)
@@ -270,7 +273,7 @@ kboolean ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_bu
     
     circular_buffer->first = &buffer->entry;
     
-    return 0;
+    return 1;
 }
 
 kboolean ks_circular_buffer_empty(struct ks_circular_buffer *circular_buffer)
@@ -572,7 +575,8 @@ struct ks_socket_context* ks_socket_refernece(struct ks_socket_container *contai
 			context = list_first_entry(&container->inactive_connections, struct ks_socket_context, entry);
 			list_del(&context->entry);
 		}
-
+        
+        context->client = 0;
 		context->active = 1;
 		context->refcount = 1;
 		context->status = KS_SOCKET_STATUS_UNINITIALIZE;
@@ -622,7 +626,7 @@ void ks_socket_derefernece(struct ks_socket_container *container, struct ks_sock
 	}
 }
 
-static void ks_socket_handle_closed(uv_handle_t *handle)
+static void ks_socket_after_close(uv_handle_t *handle)
 {
 	struct ks_socket_context *context = handle->data;
 
@@ -632,7 +636,11 @@ static void ks_socket_handle_closed(uv_handle_t *handle)
 		{
 			context->container->callback->disconnected(context->container, context);
 		}
-		context->container->num_connections --;
+        
+        if(!context->exclude)
+        {
+            context->container->num_connections --;
+        }
 	}
 
 	context->status = KS_SOCKET_STATUS_CLOSED;
@@ -646,14 +654,76 @@ static void ks_socket_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_bu
 	buf->len = sizeof(context->rdbuf);
 }
 
+
+static void ks_socket_read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
+{
+    struct ks_socket_context *context = stream->data;
+    
+    if(nread == UV_EOF)
+    {
+        if(context->container->callback->disconnected)
+        {
+            context->container->callback->disconnected(context->container, context);
+        }
+        
+        if(!context->exclude)
+        {
+            context->container->num_connections--;
+        }
+        context->status = KS_SOCKET_STATUS_CLOSING;
+        uv_close(&context->handle.handle, ks_socket_after_close);
+        return;
+    }
+    
+    if(nread < 0)
+    {
+        if(context->container->callback->handle_error)
+        {
+            context->container->callback->handle_error(context->container, context, (int)nread);
+        }
+        if(context->container->callback->disconnected)
+        {
+            context->container->callback->disconnected(context->container, context);
+        }
+        
+        if(!context->exclude)
+        {
+            context->container->num_connections--;
+        }
+        
+        context->status = KS_SOCKET_STATUS_CLOSING;
+        uv_close(&context->handle.handle, ks_socket_after_close);
+        return;
+    }
+    
+    if(context->container->callback->arrived)
+    {
+        context->container->callback->arrived(context->container, context, buf->base, nread);
+    }
+}
+
 static void ks_connected_cb(uv_connect_t *req, int status)
 {
 	struct ks_socket_context *context = req->data;
-
+    int err;
+    
 	if(status == 0)
 	{
 		context->status = KS_SOCKET_STATUS_ESTABLISHED;
-
+        
+        err = uv_read_start(&context->handle.stream, ks_socket_alloc_cb, ks_socket_read_cb);
+        if(err)
+        {
+            if(context->container->callback->handle_error)
+            {
+                context->container->callback->handle_error(context->container, context, err);
+            }
+            
+            context->status = KS_SOCKET_STATUS_CLOSING;
+            uv_close(&context->handle.handle, ks_socket_after_close);
+            return;
+        }
+        
 		if(context->container->callback->connected)
 		{
 			context->container->callback->connected(context->container, context);
@@ -667,49 +737,10 @@ static void ks_connected_cb(uv_connect_t *req, int status)
 		}
 
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed); 
+		uv_close(&context->handle.handle, ks_socket_after_close); 
 	}
 }
 
-static void ks_socket_read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
-{
-	struct ks_socket_context *context = stream->data;
-
-	if(nread == UV_EOF)
-	{
-		if(context->container->callback->disconnected)
-		{
-			context->container->callback->disconnected(context->container, context);
-		}
-
-		context->container->num_connections--;
-		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
-		return;
-	}
-	
-	if(nread < 0)
-	{
-		if(context->container->callback->handle_error)
-		{
-			context->container->callback->handle_error(context->container, context, (int)nread);
-		}
-		if(context->container->callback->disconnected)
-		{
-			context->container->callback->disconnected(context->container, context);
-		}
-
-		context->container->num_connections--;
-		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
-		return;
-	}
-
-	if(context->container->callback->arrived)
-	{
-		context->container->callback->arrived(context->container, context, buf->base, nread);
-	}
-}
 
 static void ks_socket_connection_cb(uv_stream_t *server, int status)
 {
@@ -768,7 +799,7 @@ static void ks_socket_connection_cb(uv_stream_t *server, int status)
 		}
 
 		newcontext->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&newcontext->handle.handle, ks_socket_handle_closed);
+		uv_close(&newcontext->handle.handle, ks_socket_after_close);
 		return;
 	}
 
@@ -796,7 +827,7 @@ static void ks_socket_connection_cb(uv_stream_t *server, int status)
 		}
 
 		newcontext->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&newcontext->handle.handle, ks_socket_handle_closed);
+		uv_close(&newcontext->handle.handle, ks_socket_after_close);
 		return;
 	}
 
@@ -837,7 +868,8 @@ int ks_socket_addlistener_ipv4(struct ks_socket_container *container, const char
 		ks_socket_derefernece(container, context);
 		return err;
 	}
-
+    
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 
 	err = uv_tcp_bind(&context->handle.tcp, (const struct sockaddr *)&adr, 0);
@@ -849,7 +881,7 @@ int ks_socket_addlistener_ipv4(struct ks_socket_container *container, const char
 			container->callback->handle_error(container, context, err);
 		}
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -863,7 +895,7 @@ int ks_socket_addlistener_ipv4(struct ks_socket_container *container, const char
 		}
 
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -903,7 +935,8 @@ int ks_socket_addlistener_ipv6(struct ks_socket_container *container, const char
 		ks_socket_derefernece(container, context);
 		return err;
 	}
-
+    
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 
 	err = uv_tcp_bind(&context->handle.tcp, (const struct sockaddr *)&adr, 0);
@@ -915,7 +948,7 @@ int ks_socket_addlistener_ipv6(struct ks_socket_container *container, const char
 			container->callback->handle_error(container, context, err);
 		}
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -928,7 +961,7 @@ int ks_socket_addlistener_ipv6(struct ks_socket_container *container, const char
 			container->callback->handle_error(container, context, err);
 		}
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -960,7 +993,8 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
 		ks_socket_derefernece(container, context);
 		return err;
 	}
-
+    
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 
 	err = uv_pipe_bind(&context->handle.pipe, path);
@@ -973,7 +1007,7 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
 		}
 		context->status = KS_SOCKET_STATUS_CLOSING;
 
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -986,7 +1020,7 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
 			container->callback->handle_error(container, context, err);
 		}
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -1026,6 +1060,9 @@ int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *ad
 		ks_socket_derefernece(container, context);
 		return err;
 	}
+    
+    context->client = 1;
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 
 	context->connect_req.data = context;
@@ -1041,7 +1078,7 @@ int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *ad
 
 		context->status = KS_SOCKET_STATUS_CLOSING;
 
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -1081,6 +1118,9 @@ int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *ad
 		ks_socket_derefernece(container, context);
 		return err;
 	}
+    
+    context->client = 1;
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 
 	context->connect_req.data = context;
@@ -1096,7 +1136,7 @@ int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *ad
 
 		context->status = KS_SOCKET_STATUS_CLOSING;
 
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return err;
 	}
 
@@ -1127,7 +1167,9 @@ int ks_socket_connect_pipe(struct ks_socket_container *container, const char *na
 		ks_socket_derefernece(container, context);
 		return err;
 	}
-
+    
+    context->client = 1;
+    context->exclude = 1;
 	context->status = KS_SOCKET_STATUS_INITIALIZED;
 	
 	context->connect_req.data = context;
@@ -1197,6 +1239,7 @@ static void ks_write_cb(uv_write_t *req, int status)
 
 	list_add_tail(&writereq->entry, &container->writereq_buffers);
 }
+
 int ks_socket_send(struct ks_socket_context *context, struct ks_buffer *buffer)
 {
 	int err;
@@ -1239,7 +1282,7 @@ int ks_socket_send(struct ks_socket_context *context, struct ks_buffer *buffer)
 
 			list_add_tail(&wreq->entry, &context->container->writereq_buffers);
 
-			uv_close(&context->handle.handle, ks_socket_handle_closed);
+			uv_close(&context->handle.handle, ks_socket_after_close);
 			return err;
 		}
 		
@@ -1261,7 +1304,7 @@ static void ks_shutdown_cb(uv_shutdown_t *req, int status)
 	}
 
 	context->status = KS_SOCKET_STATUS_CLOSING;
-	uv_close(&context->handle.handle, ks_socket_handle_closed);
+	uv_close(&context->handle.handle, ks_socket_after_close);
 }
 
 int ks_socket_shutdown(struct ks_socket_context *context)
@@ -1278,7 +1321,7 @@ int ks_socket_shutdown(struct ks_socket_context *context)
 		{
 			context->after_close_disconnected = 1;
 			context->status = KS_SOCKET_STATUS_CLOSING;
-			uv_close(&context->handle.handle, ks_socket_handle_closed);
+			uv_close(&context->handle.handle, ks_socket_after_close);
 			return err;
 		}
 
@@ -1293,29 +1336,60 @@ int ks_socket_close(struct ks_socket_context *context)
 	{
 		context->after_close_disconnected = 1;
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return 0;
 	}
 
 	if(context->status == KS_SOCKET_STATUS_LISTEN)
 	{
 		context->status = KS_SOCKET_STATUS_CLOSING;
-		uv_close(&context->handle.handle, ks_socket_handle_closed);
+		uv_close(&context->handle.handle, ks_socket_after_close);
 		return 0;
 	}
 
 	return 1;
 }
 
+struct ks_socket_context *ks_socket_find(struct ks_socket_container *container, uint64_t uniqid)
+{
+    return ks_table_find(&container->connections, uniqid);
+}
+
 int ks_socket_stop(struct ks_socket_container *container)
 {
-	return 1;
+    struct list_head *pos;
+    struct ks_socket_context *context;
+    list_for_each(pos, &container->active_connections)
+    {
+        context = container_of(pos, struct ks_socket_context, entry);
+        ks_socket_close(context);
+    }
+    
+	return 0;
 }
 //=======================================================================================================
 
+
+//demo echo server
+
+struct my_socket_context
+{
+    struct ks_socket_context socket_context;
+    struct ks_circular_buffer split_buffers;
+};
+
+#define DEMO_MAGIC 0x44aa
+struct my_header
+{
+    uint16_t demo_magic;
+    uint16_t length;
+};
+
+uint64_t transmit_package = 0;
+
 struct ks_socket_context *my_socket_context_new(struct ks_socket_container *container)
 {
-	return calloc(1, sizeof(struct ks_socket_context));
+	return calloc(1, sizeof(struct my_socket_context));
 }
 
 void my_socket_context_free(struct ks_socket_container *container, struct ks_socket_context *context)
@@ -1325,42 +1399,125 @@ void my_socket_context_free(struct ks_socket_container *container, struct ks_soc
 
 void my_socket_init(struct ks_socket_container *container, struct ks_socket_context *context)
 {
-
+    struct my_socket_context *mycontext = container_of(context, struct my_socket_context, socket_context);
+    
+    INIT_KS_CIRCULAR_BUFFER(&mycontext->split_buffers);
 }
 
 void my_socket_uninit(struct ks_socket_container *container, struct ks_socket_context *context)
 {
+    struct my_socket_context *mycontext = container_of(context, struct my_socket_context, socket_context);
+    
+    ks_circular_buffer_destroy(&mycontext->split_buffers);
 }
 
 void my_connected(struct ks_socket_container *container, struct ks_socket_context *context)
 {
+    struct ks_buffer *buffer;
+    struct my_header hdr;
+    char helloworld[] = "helloworld";
+    if(context->client)
+    {
+        buffer = ks_socket_buffer_refernece(container, NULL);
+        hdr.demo_magic = DEMO_MAGIC;
+        hdr.length = strlen(helloworld) + 1;
+        ks_buffer_write(buffer, &hdr, sizeof(hdr));
+        ks_buffer_write(buffer, helloworld, strlen(helloworld) + 1);
+        
+        ks_socket_send(context, buffer);
+        
+        ks_socket_buffer_derefernece(container, buffer);
+                        
+        fprintf(stderr, "client connected:%llu\n", context->uniqid);
+    }
+    else
+    {
+        fprintf(stderr, "server connected:%llu\n", context->uniqid);
+    }
 }
 
 void my_disconnected(struct ks_socket_container *container, struct ks_socket_context *context)
 {
+    fprintf(stderr, "disconnected:%llu\n", context->uniqid);
 }
 
 void my_arrived(struct ks_socket_container *container, struct ks_socket_context *context, const char *data, ssize_t nread)
 {
-/*
-	struct ks_buffer *buffer;
-	buffer = ks_socket_buffer_refernece(container ,NULL);
-
-	ks_buffer_write(buffer, "hello world", 12);
-
-	ks_socket_send(context, buffer);
-
-	ks_socket_buffer_derefernece(container, buffer);
-*/
-	ks_socket_close(context);
+    struct my_header myhdr;
+    struct ks_buffer *buffer;
+    struct my_socket_context *mycontext = container_of(context, struct my_socket_context, socket_context);
+    
+    //fprintf(stderr, "connid:%llu  data arrived:  %lu bytes\n", context->uniqid, nread);
+    
+    ks_circular_buffer_queue(&mycontext->split_buffers, data, nread);
+    
+    
+    while(1)
+    {
+        if(!ks_circular_buffer_peek_array(&mycontext->split_buffers, &myhdr, sizeof(myhdr)))
+        {
+            return;
+        }
+        
+        if(myhdr.demo_magic != DEMO_MAGIC)
+        {
+            ks_socket_close(context);
+            return;
+        }
+        
+        if(mycontext->split_buffers.usingsize < (myhdr.length + sizeof(myhdr)))
+        {
+            return;
+        }
+        
+        buffer = ks_socket_buffer_refernece(container, NULL);
+        ks_buffer_reserve(buffer, (myhdr.length + sizeof(myhdr)));
+        
+        if(ks_circular_buffer_dequeue_array(&mycontext->split_buffers, ks_buffer_getdata(buffer), myhdr.length + sizeof(myhdr)) == 0)
+        {
+            ks_socket_buffer_derefernece(container, buffer);
+            ks_socket_close(context);
+            fprintf(stderr, "unknown error\n");
+            return;
+        }
+        
+        buffer->usingsize += myhdr.length + sizeof(myhdr);
+        
+        if(container->callback->received)
+        {
+            container->callback->received(container, context, buffer);
+        }
+        
+        ks_socket_buffer_derefernece(container, buffer);
+        
+    }
+    
 }
 
 void my_received(struct ks_socket_container *container, struct ks_socket_context *context, struct ks_buffer *buffer)
 {
+    struct my_header *hdr;
+    char *string;
+    hdr = ks_buffer_getdata(buffer);
+    
+    string = &hdr[1];
+    
+    //printf("receive:%s\n", string);
+    transmit_package++;
+    
+    ks_socket_send(context, buffer);
 }
 
 void my_handle_error(struct ks_socket_container *container, struct ks_socket_context *context, int err)
 {
+}
+
+uv_timer_t des_timer;
+struct ks_socket_container socket_container;
+void on_timer(uv_timer_t *timer)
+{
+    //ks_socket_stop(&socket_container);
+    fprintf(stderr, "transmit_package:%llu\n", transmit_package);
 }
 
 struct ks_socket_callback callback = 
@@ -1378,12 +1535,13 @@ struct ks_socket_callback callback =
 
 int main(int argc, char *argv[]) 
 {
-	struct ks_socket_container socket_container;
-	
-	INIT_KS_SOCKET_CONTAINER(&socket_container, uv_default_loop(), &callback, 20000, 30000, 65535, 200000, 200000);
+	INIT_KS_SOCKET_CONTAINER(&socket_container, uv_default_loop(), &callback, 20000, 25000, 65535, 100000, 100000);
 
 	ks_socket_addlistener_ipv4(&socket_container, "0.0.0.0", 27015);
-
+    
+    uv_timer_init(uv_default_loop(), &des_timer);
+    uv_timer_start(&des_timer, on_timer, 1000, 1000);
+    
+    ks_socket_connect_ipv4(&socket_container, "127.0.0.1", 27015);
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
 }
