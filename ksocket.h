@@ -303,9 +303,9 @@ int ks_socket_addlistener_ipv6(struct ks_socket_container *container, const char
 int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char *name);
 
 //客户端连接服务器
-int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port);
-int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port);
-int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name);
+int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext);
+int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext);
+int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name, struct ks_socket_context **pcontext);
 
 //ks_buffer对象池的引用
 struct ks_buffer *ks_socket_buffer_refernece(struct ks_socket_container *container, struct ks_buffer *buffer);

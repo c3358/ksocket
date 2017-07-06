@@ -1023,12 +1023,17 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
     return 0;
 }
 
-int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port)
+int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext)
 {
     int err;
     struct sockaddr_in adr;
     struct ks_socket_context *context;
     
+    if(pcontext)
+    {
+        *pcontext = NULL;
+    }
+
     err = uv_ip4_addr(addr, port, &adr);
     
     if (err)
@@ -1077,15 +1082,26 @@ int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *ad
     }
     
     context->status = KS_SOCKET_STATUS_CONNECTING;
+
+    if(pcontext)
+    {
+        *pcontext = context;
+    }
     
     return 0;
 }
 
-int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port)
+int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext)
 {
     int err;
     struct sockaddr_in6 adr;
     struct ks_socket_context *context;
+
+    if(pcontext)
+    {
+        *pcontext = NULL;
+    }
+
     
     err = uv_ip6_addr(addr, port, &adr);
     
@@ -1135,13 +1151,22 @@ int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *ad
     }
     
     context->status = KS_SOCKET_STATUS_CONNECTING;
+    if(pcontext)
+    {
+        *pcontext = context;
+    }
     
     return 0;
 }
-int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name)
+int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name, struct ks_socket_context **pcontext)
 {
     int err;
     struct ks_socket_context *context;
+
+    if(pcontext)
+    {
+        *pcontext = NULL;
+    }
     
     context = ks_socket_refernece(container, NULL);
     if (context == NULL)
@@ -1170,6 +1195,10 @@ int ks_socket_connect_pipe(struct ks_socket_container *container, const char *na
     
     uv_pipe_connect(&context->connect_req, &context->handle.pipe, name, ks_connected_cb);
     context->status = KS_SOCKET_STATUS_CONNECTING;
+    if(pcontext)
+    {
+        *pcontext = context;
+    }
     return 0;
 }
 

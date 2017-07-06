@@ -179,6 +179,6 @@ int main(int argc, char *argv[])
     uv_timer_init(uv_default_loop(), &des_timer);
     uv_timer_start(&des_timer, on_timer, 1000, 1000);
     
-    ks_socket_connect_ipv4(&socket_container, "127.0.0.1", 27015);
+    ks_socket_connect_ipv4(&socket_container, "127.0.0.1", 27015, NULL);
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }
