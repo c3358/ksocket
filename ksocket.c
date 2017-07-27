@@ -126,9 +126,10 @@ void ks_buffer_reset(struct ks_buffer *buffer)
 }
 
 
-void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, struct ks_buffer *buffer)
+void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t length)
 {
-    reader->buffer = buffer;
+    reader->data = data;
+    reader->totalsize = length;
     reader->pos = 0;
 }
 
@@ -161,9 +162,7 @@ kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size
 
 kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
 {
-    size_t totalsize = ks_buffer_size(reader->buffer);
-
-    if(totalsize > position)
+    if(reader->totalsize > position)
     {
         reader->pos = position;
         return 1;
@@ -187,22 +186,17 @@ kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset)
 
 void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader)
 {
-    void *ptr;
-
-    ptr = ks_buffer_getdata(reader->buffer);
-    ptr += reader->pos;
-
-    return ptr;
+    return reader->data + reader->pos;
 }
 
 size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader)
 {
-    return ks_buffer_size(reader->buffer) - reader->pos;
+    return reader->totalsize - reader->pos;
 }
 
 kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader)
 {
-    return reader->pos == ks_buffer_size(reader->buffer);
+    return reader->pos >= reader->totalsize;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 

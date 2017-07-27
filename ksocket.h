@@ -268,7 +268,8 @@ struct ks_socket_container
 
 struct ks_buffer_reader
 {
-    struct ks_buffer *buffer;
+    void *data;
+    size_t totalsize;
     size_t pos;
 };
 
@@ -290,7 +291,7 @@ void ks_buffer_reserve(struct ks_buffer *buffer, size_t size);           //é¢„ç•
 /**
  * ks_buffer_reader functions
  */
-void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, struct ks_buffer *buffer);
+void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t length);
 kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length);
 kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length);
 kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position);

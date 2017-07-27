@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "ksocket.c": "cpp"
+        "ksocket.c": "cpp",
+        "demo.c": "cpp"
     }
 }
