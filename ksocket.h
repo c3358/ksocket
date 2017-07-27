@@ -1,6 +1,11 @@
 #ifndef _KSOCKET_INCLUDED_H_
 #define _KSOCKET_INCLUDED_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+
+#endif
 typedef int kboolean;
 
 //套接字接收数据的缓冲区
@@ -100,6 +105,16 @@ struct ks_netadr
     };
 };
 
+#define KS_PROTOCOL_BOOL 1
+#define KS_PROTOCOL_INT 2
+#define KS_PROTOCOL_INT64 3
+#define KS_PROTOCOL_UINT 4
+#define KS_PROTOCOL_UINT64 5
+#define KS_PROTOCOL_FLOAT 6
+#define KS_PROTOCOL_DOUBLE 7
+#define KS_PROTOCOL_STRING 8
+#define KS_PROTOCOL_BLOB 9
+
 struct ks_socket_context;
 struct ks_writereq
 {
@@ -194,6 +209,7 @@ struct ks_socket_callback
     //断开连接通知
     void (*disconnected)(struct ks_socket_container *container, struct ks_socket_context *socket_context);
     
+    //数据发送完成通知
     void (*send_notify)(struct ks_socket_container *container, struct ks_socket_context *context, struct ks_buffer *buffer, int status);
     
     //收到数据通知, 由此调用received
@@ -205,6 +221,7 @@ struct ks_socket_callback
     //错误回调函数
     void (*handle_error)(struct ks_socket_container *container, struct ks_socket_context *socket_context, int err);
     
+    //服务器已满处理函数
     void (*handle_serverfull)(struct ks_socket_container *container, struct ks_socket_context *context);
 };
 
@@ -328,5 +345,9 @@ struct ks_socket_context *ks_socket_find(struct ks_socket_container *container, 
 
 kboolean ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr);
 kboolean ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

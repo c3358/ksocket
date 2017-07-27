@@ -57,6 +57,7 @@ void my_connected(struct ks_socket_container *container, struct ks_socket_contex
     struct ks_buffer *buffer;
     struct my_header hdr;
     char helloworld[] = "helloworld";
+    
     if (context->client)
     {
         buffer = ks_socket_buffer_refernece(container, NULL);

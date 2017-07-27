@@ -990,6 +990,8 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
     
     context->exclude = 1;
     context->status = KS_SOCKET_STATUS_INITIALIZED;
+
+    unlink(path);
     
     err = uv_pipe_bind(&context->handle.pipe, path);
     
