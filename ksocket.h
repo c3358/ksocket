@@ -266,6 +266,12 @@ struct ks_socket_container
     int init_writereq_count;
 };
 
+struct ks_buffer_reader
+{
+    struct ks_buffer *buffer;
+    size_t pos;
+};
+
 #define align_size(size, align) ((size % align) == 0) ? size : (((size / align) + 1) * align)
 
 /**
@@ -280,6 +286,18 @@ void *ks_buffer_getdata(struct ks_buffer *buffer);                       //获�
 size_t ks_buffer_size(struct ks_buffer *buffer);                         //获取buffer的大小
 void ks_buffer_reset(struct ks_buffer *buffer);                          //重置buffer信息释放data2
 void ks_buffer_reserve(struct ks_buffer *buffer, size_t size);           //预留缓冲区大小
+
+/**
+ * ks_buffer_reader functions
+ */
+void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, struct ks_buffer *buffer);
+kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length);
+kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length);
+kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position);
+kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset);
+void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader);
+size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader);
+kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader);
 
 /**
  * ks_circular_buffer functions

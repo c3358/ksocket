@@ -124,6 +124,86 @@ void ks_buffer_reset(struct ks_buffer *buffer)
     buffer->totalsize = sizeof(buffer->data);
     buffer->usingsize = 0;
 }
+
+
+void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, struct ks_buffer *buffer)
+{
+    reader->buffer = buffer;
+    reader->pos = 0;
+}
+
+kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= length)
+    {
+        memcpy(data, ks_buffer_reader_getpos(reader), length);
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= length)
+    {
+        memcpy(data, ks_buffer_reader_getpos(reader), length);
+        reader->pos += length;
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
+{
+    size_t totalsize = ks_buffer_size(reader->buffer);
+
+    if(totalsize > position)
+    {
+        reader->pos = position;
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= offset)
+    {
+        reader->pos += offset;
+        return 1;
+    }
+
+    return 0;
+}
+
+void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader)
+{
+    void *ptr;
+
+    ptr = ks_buffer_getdata(reader->buffer);
+    ptr += reader->pos;
+
+    return ptr;
+}
+
+size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader)
+{
+    return ks_buffer_size(reader->buffer) - reader->pos;
+}
+
+kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader)
+{
+    return reader->pos == ks_buffer_size(reader->buffer);
+}
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 void INIT_KS_CIRCULAR_BUFFER(struct ks_circular_buffer *circular_buffer)
