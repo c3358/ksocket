@@ -377,6 +377,232 @@ void ks_circular_buffer_addblock(struct ks_circular_buffer *circular_buffer)
     list_add_tail(&buffer_block->entry, &circular_buffer->head);
 }
 
+void INIT_KS_LOCKED_QUEUE(struct ks_locked_queue *locked_queue)
+{
+    INIT_LIST_HEAD(&locked_queue->head);
+    uv_mutex_init(&locked_queue->mutex);
+    locked_queue->size = 0;
+}
+
+void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct list_head *entry)
+{
+    uv_mutex_lock(&locked_queue->mutex);
+
+    list_add(entry, &locked_queue->head);
+    locked_queue->size++;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+}
+
+void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list_head *entry)
+{
+    uv_mutex_lock(&locked_queue->mutex);
+
+    list_add_tail(entry, &locked_queue->head);
+    locked_queue->size++;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+}
+
+kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue)
+{
+    kboolean is_empty;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    is_empty = list_empty(&locked_queue->head);
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return is_empty;
+}
+
+size_t ks_locked_queue_size(struct ks_locked_queue *locked_queue)
+{
+    size_t size;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    size = locked_queue->size;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+    return size;
+}
+
+struct list_head *ks_locked_queue_pop_front(struct ks_locked_queue *locked_queue)
+{
+    struct list_head *entry = NULL;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    if(!list_empty(&locked_queue->head))
+    {
+        entry = locked_queue->head.next;
+        list_del(entry);
+        locked_queue->size--;
+    }
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return entry;
+}
+
+struct list_head *ks_locked_queue_pop_back(struct ks_locked_queue *locked_queue)
+{
+    struct list_head *entry = NULL;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    if(!list_empty(&locked_queue->head))
+    {
+        entry = locked_queue->head.prev;
+        list_del(entry);
+        locked_queue->size--;
+    }
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return entry;
+}
+
+void ks_locked_queue_destroy(struct ks_locked_queue *locked_queue)
+{
+    assert(list_empty(&locked_queue->head));
+
+    uv_mutex_destroy(&locked_queue->mutex);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+static void _ks_queue_thread_entry(void *arg)
+{
+    struct ks_queue_thread *thread = (struct ks_queue_thread *)arg;
+    struct list_head *entry;
+    struct ks_queue_thread_order *threadorder;
+
+    while(1)
+    {
+        uv_sem_wait(&thread->semaphore);
+
+        entry = ks_locked_queue_pop_front(&thread->input_locked_queue);
+
+        if(entry)
+        {
+            threadorder = container_of(entry, struct ks_queue_thread_order, entry);
+            if(threadorder->flag == KS_QUEUE_THREAD_FLAG_EXIT)
+            {
+                return;
+            }
+
+            thread->processorder(threadorder);
+
+            ks_locked_queue_push_back(&thread->output_locked_queue, &threadorder->entry);
+
+            uv_async_send(&thread->async_notify);
+        }
+    }
+}
+
+static void _ks_queue_thread_complete(uv_async_t *asyncnotify)
+{
+    struct ks_queue_thread *thread = (struct ks_queue_thread *)asyncnotify->data;
+    struct list_head *entry;
+    struct ks_queue_thread_order *threadorder;
+
+    while(!ks_locked_queue_empty(&thread->output_locked_queue))
+    {
+        entry = ks_locked_queue_pop_front(&thread->output_locked_queue);
+        if(entry)
+        {
+            threadorder = container_of(entry, struct ks_queue_thread_order, entry);
+
+            thread->completeorder(threadorder);
+            thread->freeentry(threadorder);
+        }
+    }
+}
+
+void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
+                            uv_loop_t *loop,
+                            size_t input_queue_maxcount, 
+                            ks_queue_thread_processorder processorder,
+                            ks_queue_thread_completeorder completeorder,
+                            ks_queue_thread_free_entry freeentry
+)
+{
+    INIT_KS_LOCKED_QUEUE(&thread->input_locked_queue);
+    INIT_KS_LOCKED_QUEUE(&thread->output_locked_queue);
+    thread->started = 0;
+    uv_sem_init(&thread->semaphore, 0);
+    thread->processorder = processorder;
+    thread->completeorder = completeorder;
+    thread->freeentry = freeentry;
+    thread->input_queue_maxcount = input_queue_maxcount;
+    thread->loop = loop;
+    bzero(&thread->exitorder, sizeof(thread->exitorder));
+    thread->exitorder.flag = KS_QUEUE_THREAD_FLAG_EXIT;
+}
+
+void ks_queue_thread_start(struct ks_queue_thread *thread)
+{
+    if(thread->started == 0)
+    {
+        thread->started = 1;
+        uv_async_init(thread->loop, &thread->async_notify, _ks_queue_thread_complete);
+        thread->async_notify.data = thread;
+        uv_thread_create(&thread->thread, _ks_queue_thread_entry, thread);
+    }
+}
+
+void _ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
+{
+    ks_locked_queue_push_back(&thread->input_locked_queue, &entry->entry);
+    uv_sem_post(&thread->semaphore);
+}
+
+void ks_queue_thread_stop(struct ks_queue_thread *thread)
+{
+    if(thread->started)
+    {
+        thread->started = 0;
+        _ks_queue_thread_post(thread, &thread->exitorder);
+        uv_thread_join(&thread->thread);
+        uv_close((uv_handle_t *)&thread->async_notify, NULL);
+    }
+}
+
+kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
+{
+    entry->flag = KS_QUEUE_THREAD_FLAG_POST;
+
+    if(ks_locked_queue_size(&thread->input_locked_queue) >= thread->input_queue_maxcount)
+    {
+        return 0;
+    }
+
+    _ks_queue_thread_post(thread, entry);
+
+    return 1;
+}
+
+size_t ks_socket_thread_input_size(struct ks_queue_thread *thread)
+{
+    return ks_locked_queue_size(&thread->input_locked_queue);
+}
+
+size_t ks_socket_thread_output_size(struct ks_queue_thread *thread)
+{
+    return ks_locked_queue_size(&thread->output_locked_queue);
+}
+
+void ks_queue_thread_destroy(struct ks_queue_thread *thread)
+{
+    ks_queue_thread_stop(thread);
+    ks_locked_queue_destroy(&thread->input_locked_queue);
+    ks_locked_queue_destroy(&thread->output_locked_queue);
+    uv_sem_destroy(&thread->semaphore);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 static void ks_table_free_node(struct ks_table_slot **slot)
 {

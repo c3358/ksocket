@@ -186,6 +186,42 @@ struct ks_socket_context
     int after_close_disconnected;
 };
 
+struct ks_locked_queue
+{
+    struct list_head head;
+    size_t size;
+    uv_mutex_t mutex;
+};
+
+#define KS_QUEUE_THREAD_FLAG_EXIT 0
+#define KS_QUEUE_THREAD_FLAG_POST 1
+
+struct ks_queue_thread_order
+{
+    struct list_head entry;
+    int flag;
+};
+
+typedef void (*ks_queue_thread_processorder)(struct ks_queue_thread_order *order);
+typedef void (*ks_queue_thread_completeorder)(struct ks_queue_thread_order *order);
+typedef void (*ks_queue_thread_free_entry)(struct ks_queue_thread_order *order);
+
+struct ks_queue_thread
+{
+    struct ks_locked_queue input_locked_queue;
+    struct ks_locked_queue output_locked_queue;
+    struct ks_queue_thread_order exitorder;
+    uv_loop_t *loop;
+    kboolean started;
+    uv_thread_t thread;
+    uv_async_t async_notify;
+    uv_sem_t semaphore;
+    ks_queue_thread_processorder processorder;
+    ks_queue_thread_completeorder completeorder;
+    ks_queue_thread_free_entry freeentry;
+    size_t input_queue_maxcount;
+};
+
 struct ks_socket_callback
 {
     //创建socket_context,不能为NULL
@@ -323,6 +359,41 @@ kboolean ks_table_insert(struct ks_table *table, uint64_t id, void *data);
 kboolean ks_table_remove(struct ks_table *table, uint64_t id);
 void *ks_table_find(struct ks_table *table, uint64_t id);
 void ks_table_enum(struct ks_table *table, ks_table_callback cb, void *user_arg);
+
+
+
+
+/*
+ * locked queue functions
+ */
+void INIT_KS_LOCKED_QUEUE(struct ks_locked_queue *locked_queue);
+void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct list_head *entry);
+void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list_head *entry);
+kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue);
+size_t ks_locked_queue_size(struct ks_locked_queue *locked_queue);
+struct list_head *ks_locked_queue_pop_front(struct ks_locked_queue *locked_queue);
+struct list_head *ks_locked_queue_pop_back(struct ks_locked_queue *locked_queue);
+void ks_locked_queue_destroy(struct ks_locked_queue *locked_queue);
+
+
+/*
+ * locked queue thread functions
+ */
+void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
+                            uv_loop_t *loop,
+                            size_t input_queue_maxcount, 
+                            ks_queue_thread_processorder processorder,
+                            ks_queue_thread_completeorder completeorder,
+                            ks_queue_thread_free_entry freeentry
+);
+
+void ks_queue_thread_start(struct ks_queue_thread *thread);
+void ks_queue_thread_stop(struct ks_queue_thread *thread);
+kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry);
+size_t ks_socket_thread_input_size(struct ks_queue_thread *thread);
+size_t ks_socket_thread_output_size(struct ks_queue_thread *thread);
+void ks_queue_thread_destroy(struct ks_queue_thread *thread);
+
 
 /**
  * ks_socket_container functions

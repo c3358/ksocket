@@ -171,8 +171,123 @@ struct ks_socket_callback callback =
         .received = my_received,
         .handle_error = my_handle_error};
 
+
+struct ks_locked_queue g_locked_queue;
+void unit_test_locked_queue()
+{
+    int i;
+    int c;
+    struct list_head *item;
+
+    INIT_KS_LOCKED_QUEUE(&g_locked_queue);
+
+    c = 0;
+
+    for(i = 0;i < 100; i++)
+    {
+        item = calloc(1, sizeof(struct list_head));
+        ks_locked_queue_push_back(&g_locked_queue, item);
+    }
+
+    while(!ks_locked_queue_empty(&g_locked_queue))
+    {
+        item = ks_locked_queue_pop_front(&g_locked_queue);
+        c++;
+        free(item);
+    }
+
+    printf("post 100 receive:%d\n", c);
+
+    c = 0;
+    
+    for(i = 0;i < 100; i++)
+    {
+        item = calloc(1, sizeof(struct list_head));
+        ks_locked_queue_push_front(&g_locked_queue, item);
+    }
+
+    while(!ks_locked_queue_empty(&g_locked_queue))
+    {
+        item = ks_locked_queue_pop_front(&g_locked_queue);
+        c++;
+        free(item);
+    }
+
+    printf("post 100 receive:%d\n", c);
+
+    c = 0;
+    
+    for(i = 0;i < 100; i++)
+    {
+        item = calloc(1, sizeof(struct list_head));
+        ks_locked_queue_push_back(&g_locked_queue, item);
+    }
+
+    while(!ks_locked_queue_empty(&g_locked_queue))
+    {
+        item = ks_locked_queue_pop_back(&g_locked_queue);
+        c++;
+        free(item);
+    }
+
+    printf("post 100 receive:%d\n", c);
+
+    ks_locked_queue_destroy(&g_locked_queue);
+}
+
+
+struct ks_queue_thread g_locked_queue_thread;
+int g_process_count;
+int g_complete_count;
+void my_queue_thread_processorder(struct ks_queue_thread_order *order)
+{
+    g_process_count++;
+}
+
+void my_queue_thread_completeorder(struct ks_queue_thread_order *order)
+{
+    g_complete_count++;
+}
+
+void my_queue_thread_free_entry(struct ks_queue_thread_order *order)
+{
+    free(order);
+}
+
+
+
+void unit_test_locked_queue_thread()
+{
+    int i;
+    struct ks_queue_thread_order *order;
+    INIT_KS_QUEUE_THREAD(&g_locked_queue_thread, uv_default_loop(), 50, my_queue_thread_processorder,
+    my_queue_thread_completeorder, my_queue_thread_free_entry);
+
+    
+
+    for(i = 0; i < 100; i++)
+    {
+        order = calloc(1, sizeof(struct ks_queue_thread_order));
+        if(!ks_queue_thread_post(&g_locked_queue_thread, order))
+        {
+            printf("post %d failed is full.\n", i);
+        }
+    }
+    ks_queue_thread_start(&g_locked_queue_thread);
+    sleep(1);
+    uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+    ks_queue_thread_stop(&g_locked_queue_thread);
+
+    printf("process ok:%d  %d\n", g_complete_count, g_process_count);
+
+    ks_queue_thread_destroy(&g_locked_queue_thread);
+}
+
 int main(int argc, char *argv[])
 {
+    unit_test_locked_queue();
+    unit_test_locked_queue_thread();
+
     INIT_KS_SOCKET_CONTAINER(&socket_container, uv_default_loop(), &callback, 20000, 25000, 65535, 100000, 100000);
     
     ks_socket_addlistener_ipv4(&socket_container, "0.0.0.0", 27015);
