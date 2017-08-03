@@ -4,8 +4,8 @@
 #ifdef __cplusplus
 extern "C"
 {
-
 #endif
+
 typedef int kboolean;
 
 //套接字接收数据的缓冲区
@@ -14,6 +14,23 @@ typedef int kboolean;
 #define KS_CIRCULAR_BUFFER_BLOCK_SIZE 4096
 //普通buffer的默认数据大小
 #define KS_BUFFER_DEFAULT_DATA_SIZE 512
+
+
+#define KS_REMOTE_ADDRESS_NONE 0
+#define KS_REMOTE_ADDRESS_PIPE 1
+#define KS_REMOTE_ADDRESS_IPV4 2
+#define KS_REMOTE_ADDRESS_IPV6 3
+
+struct ks_remoteaddress
+{
+    int type;
+    const char *host;
+    int port;
+};
+
+void init_remote_address_pipe(struct ks_remoteaddress *remoteaddress, const char *path);
+void init_remote_address_ipv4(struct ks_remoteaddress *remoteaddress, const char *host, int port);
+void init_remote_address_ipv6(struct ks_remoteaddress *remoteaddress, const char *host, int port);
 
 struct ks_circular_buffer_block
 {
@@ -105,16 +122,6 @@ struct ks_netadr
     };
 };
 
-#define KS_PROTOCOL_BOOL 1
-#define KS_PROTOCOL_INT 2
-#define KS_PROTOCOL_INT64 3
-#define KS_PROTOCOL_UINT 4
-#define KS_PROTOCOL_UINT64 5
-#define KS_PROTOCOL_FLOAT 6
-#define KS_PROTOCOL_DOUBLE 7
-#define KS_PROTOCOL_STRING 8
-#define KS_PROTOCOL_BLOB 9
-
 struct ks_socket_context;
 struct ks_writereq
 {
@@ -186,42 +193,6 @@ struct ks_socket_context
     int after_close_disconnected;
 };
 
-struct ks_locked_queue
-{
-    struct list_head head;
-    size_t size;
-    uv_mutex_t mutex;
-};
-
-#define KS_QUEUE_THREAD_FLAG_EXIT 0
-#define KS_QUEUE_THREAD_FLAG_POST 1
-
-struct ks_queue_thread_order
-{
-    struct list_head entry;
-    int flag;
-};
-
-typedef void (*ks_queue_thread_processorder)(struct ks_queue_thread_order *order);
-typedef void (*ks_queue_thread_completeorder)(struct ks_queue_thread_order *order);
-typedef void (*ks_queue_thread_free_entry)(struct ks_queue_thread_order *order);
-
-struct ks_queue_thread
-{
-    struct ks_locked_queue input_locked_queue;
-    struct ks_locked_queue output_locked_queue;
-    struct ks_queue_thread_order exitorder;
-    uv_loop_t *loop;
-    kboolean started;
-    uv_thread_t thread;
-    uv_async_t async_notify;
-    uv_sem_t semaphore;
-    ks_queue_thread_processorder processorder;
-    ks_queue_thread_completeorder completeorder;
-    ks_queue_thread_free_entry freeentry;
-    size_t input_queue_maxcount;
-};
-
 struct ks_socket_callback
 {
     //创建socket_context,不能为NULL
@@ -245,7 +216,6 @@ struct ks_socket_callback
     //断开连接通知
     void (*disconnected)(struct ks_socket_container *container, struct ks_socket_context *socket_context);
     
-    //数据发送完成通知
     void (*send_notify)(struct ks_socket_container *container, struct ks_socket_context *context, struct ks_buffer *buffer, int status);
     
     //收到数据通知, 由此调用received
@@ -257,7 +227,6 @@ struct ks_socket_callback
     //错误回调函数
     void (*handle_error)(struct ks_socket_container *container, struct ks_socket_context *socket_context, int err);
     
-    //服务器已满处理函数
     void (*handle_serverfull)(struct ks_socket_container *container, struct ks_socket_context *context);
 };
 
@@ -302,13 +271,6 @@ struct ks_socket_container
     int init_writereq_count;
 };
 
-struct ks_buffer_reader
-{
-    void *data;
-    size_t totalsize;
-    size_t pos;
-};
-
 #define align_size(size, align) ((size % align) == 0) ? size : (((size / align) + 1) * align)
 
 /**
@@ -323,19 +285,6 @@ void *ks_buffer_getdata(struct ks_buffer *buffer);                       //获�
 size_t ks_buffer_size(struct ks_buffer *buffer);                         //获取buffer的大小
 void ks_buffer_reset(struct ks_buffer *buffer);                          //重置buffer信息释放data2
 void ks_buffer_reserve(struct ks_buffer *buffer, size_t size);           //预留缓冲区大小
-void ks_buffer_setsize(struct ks_buffer *buffer, size_t size);           //设置缓冲区大小
-
-/**
- * ks_buffer_reader functions
- */
-void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position);
-kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset);
-void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader);
-size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader);
-kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader);
 
 /**
  * ks_circular_buffer functions
@@ -360,41 +309,6 @@ kboolean ks_table_insert(struct ks_table *table, uint64_t id, void *data);
 kboolean ks_table_remove(struct ks_table *table, uint64_t id);
 void *ks_table_find(struct ks_table *table, uint64_t id);
 void ks_table_enum(struct ks_table *table, ks_table_callback cb, void *user_arg);
-
-
-
-
-/*
- * locked queue functions
- */
-void INIT_KS_LOCKED_QUEUE(struct ks_locked_queue *locked_queue);
-void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct list_head *entry);
-void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list_head *entry);
-kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue);
-size_t ks_locked_queue_size(struct ks_locked_queue *locked_queue);
-struct list_head *ks_locked_queue_pop_front(struct ks_locked_queue *locked_queue);
-struct list_head *ks_locked_queue_pop_back(struct ks_locked_queue *locked_queue);
-void ks_locked_queue_destroy(struct ks_locked_queue *locked_queue);
-
-
-/*
- * locked queue thread functions
- */
-void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
-                            uv_loop_t *loop,
-                            size_t input_queue_maxcount, 
-                            ks_queue_thread_processorder processorder,
-                            ks_queue_thread_completeorder completeorder,
-                            ks_queue_thread_free_entry freeentry
-);
-
-void ks_queue_thread_start(struct ks_queue_thread *thread);
-void ks_queue_thread_stop(struct ks_queue_thread *thread);
-kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry);
-size_t ks_socket_thread_input_size(struct ks_queue_thread *thread);
-size_t ks_socket_thread_output_size(struct ks_queue_thread *thread);
-void ks_queue_thread_destroy(struct ks_queue_thread *thread);
-
 
 /**
  * ks_socket_container functions
