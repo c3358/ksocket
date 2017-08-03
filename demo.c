@@ -283,8 +283,98 @@ void unit_test_locked_queue_thread()
     ks_queue_thread_destroy(&g_locked_queue_thread);
 }
 
+void dump_buffer(unsigned char *data, size_t length)
+{
+    size_t i;
+
+    printf("dump buffer:");
+    for(i = 0; i < length ; i++)
+    {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+struct st_testA
+{
+    int a, b;
+};
+
+void unit_test_protobyte()
+{
+    struct ks_protobyte protobyte;
+    struct st_testA *testST;
+    void *serialize_data;
+    size_t serialize_size, serialize_size2;
+
+    INIT_KS_PROTOBYTE(&protobyte);
+    ks_protobyte_push_bool(&protobyte, 1);
+    ks_protobyte_push_bool(&protobyte, 0);
+    ks_protobyte_push_char(&protobyte, '0');
+    ks_protobyte_push_uchar(&protobyte, '1');
+    assert(ks_protobyte_size(&protobyte) == 8);
+    printf("protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_int32(&protobyte, 0x12341234);
+    assert(ks_protobyte_size(&protobyte) == 13);
+    printf("protobyte_push_int32 protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_uint32(&protobyte, 0xffffffff);
+    assert(ks_protobyte_size(&protobyte) == 18);
+    printf("protobyte_push_uint32 protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_int64(&protobyte, 0x1234123412345678);
+    assert(ks_protobyte_size(&protobyte) == 27);
+    printf("protobyte_push_int64 protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_uint64(&protobyte, 0xffffffffffffffff);
+    assert(ks_protobyte_size(&protobyte) == 36);
+    printf("protobyte_push_uint64 protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_float(&protobyte, 1.0f);
+    assert(ks_protobyte_size(&protobyte) == 41);
+    printf("protobyte_push_float protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_double(&protobyte, 10000.0);
+    assert(ks_protobyte_size(&protobyte) == 50);
+    printf("protobyte_push_double protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_string(&protobyte, "1234");
+    assert(ks_protobyte_size(&protobyte) == 60);
+    printf("protobyte_push_string protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    ks_protobyte_push_blob(&protobyte, "1234", 4);
+    assert(ks_protobyte_size(&protobyte) == 69);
+    printf("protobyte_push_blob protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    testST = calloc(1, sizeof(struct st_testA));
+    ks_protobyte_push_array(&protobyte, testST, sizeof(struct st_testA), 1);
+    assert(ks_protobyte_size(&protobyte) == 69 + sizeof(struct st_testA) * 1 + sizeof(int) + sizeof(uint32_t) + sizeof(unsigned char));
+    printf("protobyte_push_array protobyte size %zu\n", ks_protobyte_size(&protobyte));
+
+    printf("all struct push verify ok.\n");
+
+    assert(protobyte.members_count == 13);
+    printf("total %zu elements.\n", protobyte.members_count);
+
+    serialize_size = ks_protobyte_size(&protobyte);
+    serialize_data = malloc(serialize_size);
+    serialize_size2 = ks_protobyte_serialize_as_array(&protobyte, serialize_data, serialize_size);
+    assert(serialize_size == serialize_size2);
+    printf("serialize_size %zu  serialize_size2:%zu \n", serialize_size, serialize_size2);
+
+    dump_buffer(serialize_data, serialize_size);
+
+    free(serialize_data);
+
+    ks_protobyte_destroy(&protobyte);
+
+}
+
 int main(int argc, char *argv[])
 {
+    unit_test_protobyte();
+    return 0;
     unit_test_locked_queue();
     unit_test_locked_queue_thread();
 

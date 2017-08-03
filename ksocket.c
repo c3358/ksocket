@@ -16,23 +16,404 @@
 #endif /* MAX */
 
 
+void INIT_KS_PROTOBYTE(struct ks_protobyte *protobyte)
+{
+    INIT_LIST_HEAD(&protobyte->head);
+    protobyte->usingsize = 0;
+    protobyte->members_count = 0;
+}
+
+void ks_protobyte_destroy(struct ks_protobyte *protobyte)
+{
+    struct ks_protobyte_data *protobyte_data;
+    while(!list_empty(&protobyte->head))
+    {
+        protobyte_data = list_first_entry(&protobyte->head, struct ks_protobyte_data, entry);
+        list_del(&protobyte_data->entry);
+
+
+        if(protobyte_data->type == ks_protobyte_type_string || protobyte_data->type == ks_protobyte_type_blob)
+        {
+            free(protobyte_data->buf);
+            protobyte_data->buf = NULL;
+        }
+
+        if(protobyte_data->type == ks_protobyte_type_array)
+        {
+            free(protobyte_data->elts);
+            protobyte_data->elts = NULL;
+        }
+
+
+        free(protobyte_data);
+    }
+
+    INIT_LIST_HEAD(&protobyte->head);
+    protobyte->usingsize = 0;
+    protobyte->members_count = 0;
+}
+
+void ks_protobyte_push_bool(struct ks_protobyte *protobyte, unsigned char v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_bool;
+    protobyte_data->v_bool = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_char(struct ks_protobyte *protobyte, char v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_char;
+    protobyte_data->v_char = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_uchar(struct ks_protobyte *protobyte, unsigned char v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_uchar;
+    protobyte_data->v_uchar = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_int32(struct ks_protobyte *protobyte, int32_t v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_int32;
+    protobyte_data->v_int32 = v;
+
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_uint32(struct ks_protobyte *protobyte, uint32_t v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_uint32;
+    protobyte_data->v_uint32 = v;
+
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_int64(struct ks_protobyte *protobyte, int64_t v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_int64;
+    protobyte_data->v_int64 = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_uint64(struct ks_protobyte *protobyte, uint64_t v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_uint64;
+    protobyte_data->v_uint64 = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_float(struct ks_protobyte *protobyte, float v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_float;
+    protobyte_data->v_float = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_double(struct ks_protobyte *protobyte, double v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_double;
+    protobyte_data->v_double = v;
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(v);
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_string(struct ks_protobyte *protobyte, const char *v)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    
+    protobyte_data->type = ks_protobyte_type_string;
+    protobyte_data->n_buflen = strlen(v) + sizeof(char);
+    protobyte_data->buf = malloc(protobyte_data->n_buflen);
+    memcpy(protobyte_data->buf, v, protobyte_data->n_buflen);
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    //  [unsigned char] -> type
+    //  [int] -> size
+    //  [data] -> v
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(int) + protobyte_data->n_buflen;
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_blob(struct ks_protobyte *protobyte, void *data, int length)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_blob;
+    protobyte_data->n_buflen = length;
+    protobyte_data->buf = malloc(length);
+    memcpy(protobyte_data->buf, data, protobyte_data->n_buflen);
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+    //  [unsigned char] -> type
+    //  [int] -> size
+    //  [data] -> data
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(int) + protobyte_data->n_buflen;
+    protobyte->members_count++;
+}
+
+void ks_protobyte_push_array(struct ks_protobyte *protobyte, void *elts, size_t size, int nelts)
+{
+    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+
+    protobyte_data->type = ks_protobyte_type_array;
+    protobyte_data->nelts = nelts;
+    protobyte_data->size = (uint32_t)size;
+    protobyte_data->elts = calloc(nelts, size);
+    memcpy(protobyte_data->elts, elts, size * nelts);
+
+    list_add_tail(&protobyte_data->entry, &protobyte->head);
+
+    //  [unsigned char] -> type
+    //  [int] -> nelts
+    //  [uint32] -> size
+    //  [data] -> elts
+    protobyte->usingsize += sizeof(unsigned char) + sizeof(int) + sizeof(uint32_t) + (size * nelts);
+    protobyte->members_count++;
+}
+
+size_t ks_protobyte_size(struct ks_protobyte *protobyte)
+{
+    return protobyte->usingsize;
+}
+
+size_t ks_protobyte_data_size(struct ks_protobyte_data *data)
+{
+    size_t n = 0;
+
+    switch(data->type)
+    {
+        case ks_protobyte_type_bool:
+        {
+            n = sizeof(unsigned char) + sizeof(unsigned char);
+            break;
+        }
+        case ks_protobyte_type_char:
+        {
+            n = sizeof(unsigned char) + sizeof(char);
+            break;
+        }
+        case ks_protobyte_type_uchar:
+        {
+            n = sizeof(unsigned char) + sizeof(unsigned char);
+            break;
+        }
+        case ks_protobyte_type_int32:
+        {
+            n = sizeof(unsigned char) + sizeof(int32_t);
+            break;
+        }
+        case ks_protobyte_type_uint32:
+        {
+            n = sizeof(unsigned char) + sizeof(uint32_t);
+            break;
+        }
+        case ks_protobyte_type_int64:
+        {
+            n = sizeof(unsigned char) + sizeof(int64_t);
+            break;
+        }
+        case ks_protobyte_type_uint64:
+        {
+            n = sizeof(unsigned char) + sizeof(uint64_t);
+            break;
+        }
+        case ks_protobyte_type_float:
+        {
+            n = sizeof(unsigned char) + sizeof(float);
+            break;
+        }
+        case ks_protobyte_type_double:
+        {
+            n = sizeof(unsigned char) + sizeof(double);
+            break;
+        }
+        case ks_protobyte_type_string:
+        case ks_protobyte_type_blob:
+        {
+            n = sizeof(unsigned char) + sizeof(int) + data->n_buflen;
+            break;
+        }
+        case ks_protobyte_type_array:
+        {
+            n = sizeof(unsigned char) + sizeof(int) + sizeof(uint32_t) + (data->size * data->nelts);;
+            break;
+        }
+        default:
+            break;
+    }
+
+    return n;
+}
+
+size_t ks_protobyte_serialize_as_array(struct ks_protobyte *protobyte, void *data, size_t length)
+{
+    size_t serialize_size;
+    size_t block_size;
+    unsigned char *next;
+    struct ks_protobyte_data *pos;
+    serialize_size = 0;
+
+    next = data;
+
+    list_for_each_entry(pos, &protobyte->head, entry)
+    {
+        block_size = ks_protobyte_data_size(pos);
+        if((block_size + serialize_size) > length)
+            return 0;
+        next[0] = pos->type;
+        switch(pos->type)
+        {
+            case ks_protobyte_type_bool:
+            {
+                *(unsigned char *)&next[1] = pos->v_bool;
+                break;
+            }
+            case ks_protobyte_type_char:
+            {
+                *(char *)&next[1] = pos->v_char;
+                break;
+            }
+            case ks_protobyte_type_uchar:
+            {
+                *(unsigned char *)&next[1] = pos->v_uchar;
+                break;
+            }
+            case ks_protobyte_type_int32:
+            {
+                *(int32_t *)&next[1] = pos->v_int32;
+                break;
+            }
+            case ks_protobyte_type_uint32:
+            {
+                *(uint32_t *)&next[1] = pos->v_uint32;
+                break;
+            }
+            case ks_protobyte_type_int64:
+            {
+                *(int64_t *)&next[1] = pos->v_int64;
+                break;
+            }
+            case ks_protobyte_type_uint64:
+            {
+                *(uint64_t *)&next[1] = pos->v_uint64;
+                break;
+            }
+            case ks_protobyte_type_float:
+            {
+                *(float *)&next[1] = pos->v_float;
+                break;
+            }
+            case ks_protobyte_type_double:
+            {
+                *(double *)&next[1] = pos->v_double;
+                break;
+            }
+            case ks_protobyte_type_string:
+            case ks_protobyte_type_blob:
+            {
+                //[int]
+                *(int *)&next[1] = pos->n_buflen;
+                //[data]
+                memcpy(&next[1 + sizeof(int)], pos->buf, pos->n_buflen);
+                break;
+            }
+            case ks_protobyte_type_array:
+            {
+                //[data] -> elts
+                *(int *)&next[1] = pos->nelts;
+                //[uint32] -> size
+                *(uint32_t *)&next[1 + sizeof(int)] = pos->size;
+
+                //[int] -> nelts
+                memcpy(&next[1 + sizeof(int) + sizeof(uint32_t)], pos->elts, pos->nelts * pos->size);
+                break;
+            }
+            default:
+                break;
+        }
+
+        next += block_size;
+        serialize_size += block_size;
+    }
+
+    return serialize_size;
+}
+
+void* ks_protobyte_serialize(struct ks_protobyte *protobyte, size_t *length)
+{
+    void *data;
+    size_t compile_size;
+    compile_size = ks_protobyte_size(protobyte);
+    data = malloc(compile_size);
+    length[0] = ks_protobyte_serialize_as_array(protobyte, data, compile_size);
+    return data;
+}
+
+
 void init_remote_address_pipe(struct ks_remoteaddress *remoteaddress, const char *path)
 {
-    remoteaddress->type = REMOTE_ADDRESS_PIPE;
+    remoteaddress->type = KS_REMOTE_ADDRESS_PIPE;
     remoteaddress->host = path;
     remoteaddress->port = 0;
 }
 
 void init_remote_address_ipv4(struct ks_remoteaddress *remoteaddress, const char *host, int port)
 {
-    remoteaddress->type = REMOTE_ADDRESS_IPV4;
+    remoteaddress->type = KS_REMOTE_ADDRESS_IPV4;
     remoteaddress->host = host;
     remoteaddress->port = port;
 }
 
 void init_remote_address_ipv6(struct ks_remoteaddress *remoteaddress, const char *host, int port)
 {
-    remoteaddress->type = REMOTE_ADDRESS_IPV6;
+    remoteaddress->type = KS_REMOTE_ADDRESS_IPV6;
     remoteaddress->host = host;
     remoteaddress->port = port;
 }
@@ -106,6 +487,12 @@ void ks_buffer_reserve(struct ks_buffer *buffer, size_t size)
     }
 }
 
+void ks_buffer_setsize(struct ks_buffer *buffer, size_t size)
+{
+    ks_buffer_reserve(buffer, size);
+    buffer->usingsize = size;
+}
+
 void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size)
 {
     unsigned char *dst;
@@ -145,6 +532,80 @@ void ks_buffer_reset(struct ks_buffer *buffer)
     
     buffer->totalsize = sizeof(buffer->data);
     buffer->usingsize = 0;
+}
+
+
+void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t length)
+{
+    reader->data = data;
+    reader->totalsize = length;
+    reader->pos = 0;
+}
+
+kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= length)
+    {
+        memcpy(data, ks_buffer_reader_getpos(reader), length);
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= length)
+    {
+        memcpy(data, ks_buffer_reader_getpos(reader), length);
+        reader->pos += length;
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
+{
+    if(reader->totalsize > position)
+    {
+        reader->pos = position;
+        return 1;
+    }
+
+    return 0;
+}
+
+kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset)
+{
+    size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
+
+    if(unread_bytes >= offset)
+    {
+        reader->pos += offset;
+        return 1;
+    }
+
+    return 0;
+}
+
+void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader)
+{
+    return reader->data + reader->pos;
+}
+
+size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader)
+{
+    return reader->totalsize - reader->pos;
+}
+
+kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader)
+{
+    return reader->pos >= reader->totalsize;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -323,6 +784,232 @@ void ks_circular_buffer_addblock(struct ks_circular_buffer *circular_buffer)
     struct ks_circular_buffer_block *buffer_block = calloc(1, sizeof(struct ks_circular_buffer_block));
     circular_buffer->totalsize += sizeof(buffer_block->buf);
     list_add_tail(&buffer_block->entry, &circular_buffer->head);
+}
+
+void INIT_KS_LOCKED_QUEUE(struct ks_locked_queue *locked_queue)
+{
+    INIT_LIST_HEAD(&locked_queue->head);
+    uv_mutex_init(&locked_queue->mutex);
+    locked_queue->size = 0;
+}
+
+void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct list_head *entry)
+{
+    uv_mutex_lock(&locked_queue->mutex);
+
+    list_add(entry, &locked_queue->head);
+    locked_queue->size++;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+}
+
+void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list_head *entry)
+{
+    uv_mutex_lock(&locked_queue->mutex);
+
+    list_add_tail(entry, &locked_queue->head);
+    locked_queue->size++;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+}
+
+kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue)
+{
+    kboolean is_empty;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    is_empty = list_empty(&locked_queue->head);
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return is_empty;
+}
+
+size_t ks_locked_queue_size(struct ks_locked_queue *locked_queue)
+{
+    size_t size;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    size = locked_queue->size;
+
+    uv_mutex_unlock(&locked_queue->mutex);
+    return size;
+}
+
+struct list_head *ks_locked_queue_pop_front(struct ks_locked_queue *locked_queue)
+{
+    struct list_head *entry = NULL;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    if(!list_empty(&locked_queue->head))
+    {
+        entry = locked_queue->head.next;
+        list_del(entry);
+        locked_queue->size--;
+    }
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return entry;
+}
+
+struct list_head *ks_locked_queue_pop_back(struct ks_locked_queue *locked_queue)
+{
+    struct list_head *entry = NULL;
+
+    uv_mutex_lock(&locked_queue->mutex);
+
+    if(!list_empty(&locked_queue->head))
+    {
+        entry = locked_queue->head.prev;
+        list_del(entry);
+        locked_queue->size--;
+    }
+
+    uv_mutex_unlock(&locked_queue->mutex);
+
+    return entry;
+}
+
+void ks_locked_queue_destroy(struct ks_locked_queue *locked_queue)
+{
+    assert(list_empty(&locked_queue->head));
+
+    uv_mutex_destroy(&locked_queue->mutex);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+static void _ks_queue_thread_entry(void *arg)
+{
+    struct ks_queue_thread *thread = (struct ks_queue_thread *)arg;
+    struct list_head *entry;
+    struct ks_queue_thread_order *threadorder;
+
+    while(1)
+    {
+        uv_sem_wait(&thread->semaphore);
+
+        entry = ks_locked_queue_pop_front(&thread->input_locked_queue);
+
+        if(entry)
+        {
+            threadorder = container_of(entry, struct ks_queue_thread_order, entry);
+            if(threadorder->flag == KS_QUEUE_THREAD_FLAG_EXIT)
+            {
+                return;
+            }
+
+            thread->processorder(threadorder);
+
+            ks_locked_queue_push_back(&thread->output_locked_queue, &threadorder->entry);
+
+            uv_async_send(&thread->async_notify);
+        }
+    }
+}
+
+static void _ks_queue_thread_complete(uv_async_t *asyncnotify)
+{
+    struct ks_queue_thread *thread = (struct ks_queue_thread *)asyncnotify->data;
+    struct list_head *entry;
+    struct ks_queue_thread_order *threadorder;
+
+    while(!ks_locked_queue_empty(&thread->output_locked_queue))
+    {
+        entry = ks_locked_queue_pop_front(&thread->output_locked_queue);
+        if(entry)
+        {
+            threadorder = container_of(entry, struct ks_queue_thread_order, entry);
+
+            thread->completeorder(threadorder);
+            thread->freeentry(threadorder);
+        }
+    }
+}
+
+void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
+                            uv_loop_t *loop,
+                            size_t input_queue_maxcount, 
+                            ks_queue_thread_processorder processorder,
+                            ks_queue_thread_completeorder completeorder,
+                            ks_queue_thread_free_entry freeentry
+)
+{
+    INIT_KS_LOCKED_QUEUE(&thread->input_locked_queue);
+    INIT_KS_LOCKED_QUEUE(&thread->output_locked_queue);
+    thread->started = 0;
+    uv_sem_init(&thread->semaphore, 0);
+    thread->processorder = processorder;
+    thread->completeorder = completeorder;
+    thread->freeentry = freeentry;
+    thread->input_queue_maxcount = input_queue_maxcount;
+    thread->loop = loop;
+    bzero(&thread->exitorder, sizeof(thread->exitorder));
+    thread->exitorder.flag = KS_QUEUE_THREAD_FLAG_EXIT;
+}
+
+void ks_queue_thread_start(struct ks_queue_thread *thread)
+{
+    if(thread->started == 0)
+    {
+        thread->started = 1;
+        uv_async_init(thread->loop, &thread->async_notify, _ks_queue_thread_complete);
+        thread->async_notify.data = thread;
+        uv_thread_create(&thread->thread, _ks_queue_thread_entry, thread);
+    }
+}
+
+void _ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
+{
+    ks_locked_queue_push_back(&thread->input_locked_queue, &entry->entry);
+    uv_sem_post(&thread->semaphore);
+}
+
+void ks_queue_thread_stop(struct ks_queue_thread *thread)
+{
+    if(thread->started)
+    {
+        thread->started = 0;
+        _ks_queue_thread_post(thread, &thread->exitorder);
+        uv_thread_join(&thread->thread);
+        uv_close((uv_handle_t *)&thread->async_notify, NULL);
+    }
+}
+
+kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
+{
+    entry->flag = KS_QUEUE_THREAD_FLAG_POST;
+
+    if(ks_locked_queue_size(&thread->input_locked_queue) >= thread->input_queue_maxcount)
+    {
+        return 0;
+    }
+
+    _ks_queue_thread_post(thread, entry);
+
+    return 1;
+}
+
+size_t ks_socket_thread_input_size(struct ks_queue_thread *thread)
+{
+    return ks_locked_queue_size(&thread->input_locked_queue);
+}
+
+size_t ks_socket_thread_output_size(struct ks_queue_thread *thread)
+{
+    return ks_locked_queue_size(&thread->output_locked_queue);
+}
+
+void ks_queue_thread_destroy(struct ks_queue_thread *thread)
+{
+    ks_queue_thread_stop(thread);
+    ks_locked_queue_destroy(&thread->input_locked_queue);
+    ks_locked_queue_destroy(&thread->output_locked_queue);
+    uv_sem_destroy(&thread->semaphore);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
