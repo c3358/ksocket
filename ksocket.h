@@ -323,6 +323,7 @@ void *ks_buffer_getdata(struct ks_buffer *buffer);                       //获�
 size_t ks_buffer_size(struct ks_buffer *buffer);                         //获取buffer的大小
 void ks_buffer_reset(struct ks_buffer *buffer);                          //重置buffer信息释放data2
 void ks_buffer_reserve(struct ks_buffer *buffer, size_t size);           //预留缓冲区大小
+void ks_buffer_setsize(struct ks_buffer *buffer, size_t size);           //设置缓冲区大小
 
 /**
  * ks_buffer_reader functions

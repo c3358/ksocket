@@ -15,6 +15,7 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif /* MAX */
 
+
 struct ks_buffer *ks_buffer_create()
 {
     struct ks_buffer *buffer = calloc(1, sizeof(struct ks_buffer));
@@ -82,6 +83,12 @@ void ks_buffer_reserve(struct ks_buffer *buffer, size_t size)
             memcpy(buffer->data2, buffer->data, buffer->usingsize);
         }
     }
+}
+
+void ks_buffer_setsize(struct ks_buffer *buffer, size_t size)
+{
+    ks_buffer_reserve(buffer, size);
+    buffer->usingsize = size;
 }
 
 void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size)
