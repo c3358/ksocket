@@ -111,6 +111,16 @@ enum ks_socket_status
     KS_SOCKET_STATUS_CLOSED        //close操作执行完成
 };
 
+#ifdef _WIN32
+#define bzero ZeroMemory
+struct  sockaddr_un {
+        unsigned char   sun_len;        /* sockaddr len including null */
+        u_short     sun_family;     /* [XSI] AF_UNIX */
+        char            sun_path[104];  /* [XSI] path name (gag) */
+};
+
+
+#endif
 struct ks_netadr
 {
     union {
@@ -190,7 +200,7 @@ void ks_protobyte_push_blob(struct ks_protobyte *protobyte, void *data, int leng
 void ks_protobyte_push_array(struct ks_protobyte *protobyte, void *elts, size_t size, int nelts);
 size_t ks_protobyte_size(struct ks_protobyte *protobyte);
 size_t ks_protobyte_serialize_as_array(struct ks_protobyte *protobyte, void *data, size_t length);
-void* pks_rotobyte_serialize(struct ks_protobyte *protobyte, size_t *length);
+void* ks_protobyte_serialize(struct ks_protobyte *protobyte, size_t *length);
 
 struct ks_protobyte_reader
 {
@@ -203,6 +213,18 @@ struct ks_protobyte_reader
 };
 
 void INIT_KS_PROTOBYTE_READER(struct ks_protobyte_reader *reader, void *data, size_t length);
+kboolean ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v);
+kboolean ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v);
+kboolean ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v);
+kboolean ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v);
+kboolean ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v);
+kboolean ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v);
+kboolean ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v);
+kboolean ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v);
+kboolean ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v);
+kboolean ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v);
+kboolean ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length);
+kboolean ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts);
 
 
 struct ks_socket_context;

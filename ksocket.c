@@ -4,7 +4,9 @@
 #include <assert.h>
 #include <unistd.h>
 #include <uv.h>
+#ifndef _WIN32
 #include <sys/un.h>
+#endif
 #include "list.h"
 #include "ksocket.h"
 
@@ -396,6 +398,275 @@ void* ks_protobyte_serialize(struct ks_protobyte *protobyte, size_t *length)
     return data;
 }
 
+
+
+void INIT_KS_PROTOBYTE_READER(struct ks_protobyte_reader *reader, void *data, size_t length)
+{
+    reader->data = data;
+    reader->length = length;
+    reader->head = data;
+    reader->tail = data + length;
+    reader->pos = reader->head;
+    reader->npos = 0;
+}
+
+kboolean ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(unsigned char);
+    
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    
+    if(reader->pos[0] != ks_protobyte_type_bool)
+    {
+        return 0;
+    }
+    
+    *v = reader->pos[1];
+    
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+kboolean ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v)
+{
+    size_t n = sizeof(char) + sizeof(char);    
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_char)
+    {
+        return 0;
+    }
+    *v = reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+
+kboolean ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(unsigned char);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_uchar)
+    {
+        return 0;
+    }
+    *v = reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+kboolean ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(int32_t);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_int32)
+    {
+        return 0;
+    }
+    *v = *(int32_t *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+
+kboolean ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(uint32_t);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_uint32)
+    {
+        return 0;
+    }
+    *v = *(uint32_t *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+kboolean ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(int64_t);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_int64)
+    {
+        return 0;
+    }
+    *v = *(int64_t *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+kboolean ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(uint64_t);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_uint64)
+    {
+        return 0;
+    }
+    *v = *(uint64_t *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+kboolean ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(float);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_float)
+    {
+        return 0;
+    }
+    *v = *(float *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+
+kboolean ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(double);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    if(reader->pos[0] != ks_protobyte_type_double)
+    {
+        return 0;
+    }
+    *v = *(double *)&reader->pos[1];
+    reader->pos += n;
+    reader->npos += n;
+    return 1;
+}
+
+kboolean ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v)
+{
+    size_t n = sizeof(unsigned char) + sizeof(int);
+    int n_buflen;
+    char *temp;
+    
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    
+    
+    n_buflen = *(int *)&reader->pos[sizeof(unsigned char)];
+    if(n_buflen <= 0 || (reader->pos + n + n_buflen) > reader->tail)
+    {
+        return 0;
+    }
+    
+    temp = malloc(n_buflen);
+    memcpy(temp, &reader->pos[sizeof(unsigned char) + sizeof(int)], n_buflen);
+    *v = temp;
+    
+    temp[n_buflen - sizeof(char)] = '\0';
+    
+    reader->pos += n + n_buflen;
+    reader->npos += n + n_buflen;
+    return 1;
+}
+
+kboolean ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length)
+{
+    size_t n = sizeof(unsigned char) + sizeof(int);
+    int n_buflen;
+    void *temp;
+    
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    
+    
+    n_buflen = *(int *)&reader->pos[sizeof(unsigned char)];
+    if(n_buflen <= 0 || (reader->pos + n + n_buflen) > reader->tail)
+    {
+        return 0;
+    }
+    
+    temp = malloc(n_buflen);
+    memcpy(temp, &reader->pos[sizeof(unsigned char) + sizeof(int)], n_buflen);
+    *v = temp;
+    *length = n_buflen;
+    
+    reader->pos += n + n_buflen;
+    reader->npos += n + n_buflen;
+    return 1;
+}
+
+kboolean ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts)
+{
+    int _nelts;
+    uint32_t _size;
+    size_t chunk_size;
+    size_t n = sizeof(unsigned char) + sizeof(int) + sizeof(uint32_t);
+    if((reader->pos + n) > reader->tail)
+    {
+        return 0;
+    }
+    
+    _nelts = *(int *)&reader->pos[sizeof(unsigned char)];
+    _size = *(uint32_t *)&reader->pos[sizeof(unsigned char) + sizeof(int)];
+    
+    chunk_size = _nelts * _size;
+    
+    if(chunk_size > 0x7fffffff)
+    {
+        return 0;
+    }
+    
+    if((reader->pos + n + chunk_size) > reader->tail)
+    {
+        return 0;
+    }
+    *nelts = _nelts;
+    *size = _size;
+    *elts = malloc(chunk_size);
+    memcpy(*elts, &reader->pos[sizeof(unsigned char) + sizeof(int) + sizeof(uint32_t)], chunk_size);
+    
+    reader->pos += n + chunk_size;
+    reader->npos += n + chunk_size;
+    return 1;
+}
 
 void init_remote_address_pipe(struct ks_remoteaddress *remoteaddress, const char *path)
 {
