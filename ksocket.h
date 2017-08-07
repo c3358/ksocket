@@ -6,6 +6,20 @@ extern "C"
 {
 
 #endif
+
+#ifdef _WIN32
+
+#define bzero ZeroMemory
+
+struct  sockaddr_un {
+        unsigned char   sun_len;        /* sockaddr len including null */
+        u_short     sun_family;     /* [XSI] AF_UNIX */
+        char            sun_path[104];  /* [XSI] path name (gag) */
+};
+
+
+#endif
+
 typedef int kboolean;
 
 //套接字接收数据的缓冲区
@@ -111,16 +125,6 @@ enum ks_socket_status
     KS_SOCKET_STATUS_CLOSED        //close操作执行完成
 };
 
-#ifdef _WIN32
-#define bzero ZeroMemory
-struct  sockaddr_un {
-        unsigned char   sun_len;        /* sockaddr len including null */
-        u_short     sun_family;     /* [XSI] AF_UNIX */
-        char            sun_path[104];  /* [XSI] path name (gag) */
-};
-
-
-#endif
 struct ks_netadr
 {
     union {

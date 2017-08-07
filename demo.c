@@ -300,6 +300,92 @@ struct st_testA
     int a, b;
 };
 
+void unit_test_protobyte_reader(void *data, size_t length)
+{
+    struct ks_protobyte_reader sr;
+    unsigned char v1;
+    char v2;
+    int32_t v3;
+    uint32_t v4;
+    int64_t v5;
+    uint64_t v6;
+    float v7;
+    double v8;
+    char *v9;
+    void *v10;
+    size_t v10_len;
+    void *elts;
+    size_t size;
+    int nelts;
+    int i;
+    struct st_testA *testST;
+
+
+
+    INIT_KS_PROTOBYTE_READER(&sr, data, length);
+
+    assert(ks_protobyte_read_bool(&sr, &v1));
+    printf("ks_protobyte_read_bool -> %d\n", v1);
+
+    assert(ks_protobyte_read_bool(&sr, &v1));
+    printf("ks_protobyte_read_bool -> %d\n", v1);
+
+    assert(ks_protobyte_read_char(&sr, &v2));
+    printf("ks_protobyte_read_char -> %d\n", v2);
+
+    assert(ks_protobyte_read_uchar(&sr, &v1));
+    printf("ks_protobyte_read_uchar -> %d\n", v1);
+
+    assert(ks_protobyte_read_int32(&sr, &v3));
+    printf("ks_protobyte_read_int32 -> %08x\n", v3);
+
+    assert(ks_protobyte_read_uint32(&sr, &v4));
+    printf("ks_protobyte_read_uint32 -> %08x\n", v4);
+
+    assert(ks_protobyte_read_int64(&sr, &v5));
+    printf("ks_protobyte_read_int64 -> %16llx\n", v5);
+
+    assert(ks_protobyte_read_uint64(&sr, &v6));
+    printf("ks_protobyte_read_uint64 -> %16llx\n", v6);
+
+
+    assert(ks_protobyte_read_float(&sr, &v7));
+    printf("ks_protobyte_read_float -> %f\n", v7);
+
+    assert(ks_protobyte_read_double(&sr, &v8));
+    printf("ks_protobyte_read_double -> %lf\n", v8);
+
+    v9 = NULL;
+    v10 = NULL;
+    elts = NULL;
+
+    assert(ks_protobyte_read_string(&sr, &v9));
+    printf("ks_protobyte_read_string -> %s\n", v9);
+
+    assert(ks_protobyte_read_blob(&sr, &v10, &v10_len));
+    printf("ks_protobyte_read_blob ->");
+
+    dump_buffer(v10, v10_len);
+
+
+    assert(ks_protobyte_read_array(&sr, &elts, &size, &nelts));
+    printf("ks_protobyte_read_array ->");
+
+
+    testST = elts;
+
+    for(i = 0; i < nelts; i++)
+    {
+        printf("%08x  %08x\n", testST[i].a, testST[i].b);
+    }
+
+    free(v10);
+    free(v9);
+    free(elts);
+
+    printf("unit_test_protobyte_reader done.\n");
+}
+
 void unit_test_protobyte()
 {
     struct ks_protobyte protobyte;
@@ -347,9 +433,9 @@ void unit_test_protobyte()
     assert(ks_protobyte_size(&protobyte) == 69);
     printf("protobyte_push_blob protobyte size %zu\n", ks_protobyte_size(&protobyte));
 
-    testST = calloc(1, sizeof(struct st_testA));
-    ks_protobyte_push_array(&protobyte, testST, sizeof(struct st_testA), 1);
-    assert(ks_protobyte_size(&protobyte) == 69 + sizeof(struct st_testA) * 1 + sizeof(int) + sizeof(uint32_t) + sizeof(unsigned char));
+    testST = calloc(100, sizeof(struct st_testA));
+    ks_protobyte_push_array(&protobyte, testST, sizeof(struct st_testA), 100);
+    assert(ks_protobyte_size(&protobyte) == 69 + sizeof(struct st_testA) * 100 + sizeof(int) + sizeof(uint32_t) + sizeof(unsigned char));
     printf("protobyte_push_array protobyte size %zu\n", ks_protobyte_size(&protobyte));
 
     printf("all struct push verify ok.\n");
@@ -365,6 +451,8 @@ void unit_test_protobyte()
 
     dump_buffer(serialize_data, serialize_size);
 
+    unit_test_protobyte_reader(serialize_data, serialize_size);
+
     free(serialize_data);
 
     ks_protobyte_destroy(&protobyte);
@@ -375,6 +463,7 @@ int main(int argc, char *argv[])
 {
     unit_test_protobyte();
     return 0;
+
     unit_test_locked_queue();
     unit_test_locked_queue_thread();
 
