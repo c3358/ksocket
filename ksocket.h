@@ -34,7 +34,7 @@ typedef int kboolean;
 #define KS_REMOTE_ADDRESS_IPV4 2
 #define KS_REMOTE_ADDRESS_IPV6 3
 
-#define KS_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+#define KS_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 struct ks_remoteaddress
 {
