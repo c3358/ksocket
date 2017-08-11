@@ -18,11 +18,36 @@
 #endif /* MAX */
 
 
+
 void INIT_KS_PROTOBYTE(struct ks_protobyte *protobyte)
 {
+    int i;
     INIT_LIST_HEAD(&protobyte->head);
+    INIT_LIST_HEAD(&protobyte->freelist);
+    bzero(&protobyte->defaults, sizeof(protobyte->defaults));
     protobyte->usingsize = 0;
     protobyte->members_count = 0;
+
+    for(i = 0; i < KS_ARRAY_SIZE(protobyte->defaults); i++)
+    {
+        list_add_tail(&protobyte->defaults[i].entry, &protobyte->freelist);
+    }
+}
+
+struct ks_protobyte_data *ks_protobyte_nextdata(struct ks_protobyte *protobyte)
+{
+    struct ks_protobyte_data *entry;
+    if(!list_empty(&protobyte->freelist))
+    {
+        entry = list_first_entry(&protobyte->freelist, struct ks_protobyte_data, entry);
+        list_del(&entry->entry);
+        entry->alloc = 0;
+        return entry;
+    }
+
+    entry = calloc(1, sizeof(struct ks_protobyte_data));
+    entry->alloc = 1;
+    return entry;
 }
 
 void ks_protobyte_destroy(struct ks_protobyte *protobyte)
@@ -46,8 +71,10 @@ void ks_protobyte_destroy(struct ks_protobyte *protobyte)
             protobyte_data->elts = NULL;
         }
 
-
-        free(protobyte_data);
+        if(protobyte_data->alloc)
+        {
+            free(protobyte_data);
+        }
     }
 
     INIT_LIST_HEAD(&protobyte->head);
@@ -57,7 +84,7 @@ void ks_protobyte_destroy(struct ks_protobyte *protobyte)
 
 void ks_protobyte_push_bool(struct ks_protobyte *protobyte, unsigned char v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_bool;
     protobyte_data->v_bool = v;
@@ -69,7 +96,7 @@ void ks_protobyte_push_bool(struct ks_protobyte *protobyte, unsigned char v)
 
 void ks_protobyte_push_char(struct ks_protobyte *protobyte, char v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_char;
     protobyte_data->v_char = v;
@@ -81,7 +108,7 @@ void ks_protobyte_push_char(struct ks_protobyte *protobyte, char v)
 
 void ks_protobyte_push_uchar(struct ks_protobyte *protobyte, unsigned char v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_uchar;
     protobyte_data->v_uchar = v;
@@ -93,7 +120,7 @@ void ks_protobyte_push_uchar(struct ks_protobyte *protobyte, unsigned char v)
 
 void ks_protobyte_push_int32(struct ks_protobyte *protobyte, int32_t v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_int32;
     protobyte_data->v_int32 = v;
@@ -106,7 +133,7 @@ void ks_protobyte_push_int32(struct ks_protobyte *protobyte, int32_t v)
 
 void ks_protobyte_push_uint32(struct ks_protobyte *protobyte, uint32_t v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_uint32;
     protobyte_data->v_uint32 = v;
@@ -119,7 +146,7 @@ void ks_protobyte_push_uint32(struct ks_protobyte *protobyte, uint32_t v)
 
 void ks_protobyte_push_int64(struct ks_protobyte *protobyte, int64_t v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_int64;
     protobyte_data->v_int64 = v;
@@ -131,7 +158,7 @@ void ks_protobyte_push_int64(struct ks_protobyte *protobyte, int64_t v)
 
 void ks_protobyte_push_uint64(struct ks_protobyte *protobyte, uint64_t v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_uint64;
     protobyte_data->v_uint64 = v;
@@ -143,7 +170,7 @@ void ks_protobyte_push_uint64(struct ks_protobyte *protobyte, uint64_t v)
 
 void ks_protobyte_push_float(struct ks_protobyte *protobyte, float v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_float;
     protobyte_data->v_float = v;
@@ -155,7 +182,7 @@ void ks_protobyte_push_float(struct ks_protobyte *protobyte, float v)
 
 void ks_protobyte_push_double(struct ks_protobyte *protobyte, double v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_double;
     protobyte_data->v_double = v;
@@ -167,7 +194,7 @@ void ks_protobyte_push_double(struct ks_protobyte *protobyte, double v)
 
 void ks_protobyte_push_string(struct ks_protobyte *protobyte, const char *v)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     
     protobyte_data->type = ks_protobyte_type_string;
@@ -185,7 +212,7 @@ void ks_protobyte_push_string(struct ks_protobyte *protobyte, const char *v)
 
 void ks_protobyte_push_blob(struct ks_protobyte *protobyte, void *data, int length)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_blob;
     protobyte_data->n_buflen = length;
@@ -202,7 +229,7 @@ void ks_protobyte_push_blob(struct ks_protobyte *protobyte, void *data, int leng
 
 void ks_protobyte_push_array(struct ks_protobyte *protobyte, void *elts, size_t size, int nelts)
 {
-    struct ks_protobyte_data *protobyte_data = calloc(1, sizeof(struct ks_protobyte_data));
+    struct ks_protobyte_data *protobyte_data = ks_protobyte_nextdata(protobyte);
 
     protobyte_data->type = ks_protobyte_type_array;
     protobyte_data->nelts = nelts;

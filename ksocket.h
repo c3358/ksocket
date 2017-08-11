@@ -154,17 +154,13 @@ enum ks_protobyte_type
     ks_protobyte_type_array     //object array
 };
 
-struct ks_protobyte
-{
-    struct list_head head;
-    size_t usingsize;
-    size_t members_count;
-};
+#define KS_PROTOBYTE_DEFAULTS_COUNT 100
 
 struct ks_protobyte_data
 {
     struct list_head entry;
     unsigned char type;
+    unsigned char alloc;
 
     //using as string or blob
     int n_buflen;
@@ -188,6 +184,16 @@ struct ks_protobyte_data
     int nelts;
     uint32_t size;
     void *elts;
+};
+
+struct ks_protobyte
+{
+    struct list_head head;
+    size_t usingsize;
+    size_t members_count;
+
+    struct list_head freelist;
+    struct ks_protobyte_data defaults[KS_PROTOBYTE_DEFAULTS_COUNT];
 };
 
 void INIT_KS_PROTOBYTE(struct ks_protobyte *protobyte);
