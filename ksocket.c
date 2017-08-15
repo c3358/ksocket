@@ -1,3 +1,4 @@
+#define _USING_LIST_FUNCTIONS_
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
