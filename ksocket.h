@@ -7,6 +7,10 @@ extern "C"
 
 #endif
 
+#ifndef _WIN32
+#include <sys/un.h>
+#endif
+    
 #ifdef _WIN32
 
 #define bzero ZeroMemory

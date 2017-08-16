@@ -1096,7 +1096,7 @@ void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct lis
 {
     uv_mutex_lock(&locked_queue->mutex);
 
-    list_add(entry, &locked_queue->head);
+    list_add_head(entry, &locked_queue->head);
     locked_queue->size++;
 
     uv_mutex_unlock(&locked_queue->mutex);
@@ -1513,13 +1513,13 @@ void INIT_KS_SOCKET_CONTAINER(struct ks_socket_container *container, uv_loop_t *
     for (i = 0; i < init_buffers_count; i++)
     {
         buffer = ks_buffer_create();
-        list_add(&buffer->entry, &container->buffers);
+        list_add_head(&buffer->entry, &container->buffers);
     }
     
     for (i = 0; i < init_writereq_count; i++)
     {
         wreq = calloc(1, sizeof(struct ks_writereq));
-        list_add(&wreq->entry, &container->writereq_buffers);
+        list_add_head(&wreq->entry, &container->writereq_buffers);
     }
 }
 
@@ -2291,7 +2291,7 @@ int ks_socket_send(struct ks_socket_context *context, struct ks_buffer *buffer)
         
         ks_socket_refernece(context->container, context);
         ks_socket_buffer_refernece(context->container, buffer);
-        list_add(&wreq->entry, &context->sendorder);
+        list_add_head(&wreq->entry, &context->sendorder);
         
         wreq->context = context;
         wreq->buffer = buffer;

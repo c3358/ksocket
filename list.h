@@ -15,11 +15,9 @@
  * under normal circumstances, used to verify that nobody uses
  * non-initialized list entries.
  */
-//#define POISON_POINTER_DELTA 0
-//#define LIST_POISON1 ((void *) 0x00100100 + POISON_POINTER_DELTA)
-//#define LIST_POISON2 ((void *) 0x00200200 + POISON_POINTER_DELTA)
-#define LIST_POISON1 ((void *)0)
-#define LIST_POISON2 ((void *)0)
+#define POISON_POINTER_DELTA 0
+#define LIST_POISON1 ((void *) 0x00100100 + POISON_POINTER_DELTA)
+#define LIST_POISON2 ((void *) 0x00200200 + POISON_POINTER_DELTA)
 
 /*
  * Simple doubly linked list implementation.
@@ -56,17 +54,17 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
  * the prev/next entries already!
  */
 #ifndef CONFIG_DEBUG_LIST
-static inline void __list_add(struct list_head *_new,
+static inline void __list_add(struct list_head *entry,
 			      struct list_head *prev,
 			      struct list_head *next)
 {
-	next->prev = _new;
-	_new->next = next;
-	_new->prev = prev;
-	prev->next = _new;
+	next->prev = entry;
+	entry->next = next;
+	entry->prev = prev;
+	prev->next = entry;
 }
 #else
-extern void __list_add(struct list_head *_new,
+extern void __list_add(struct list_head *entry,
 			      struct list_head *prev,
 			      struct list_head *next);
 #endif
@@ -80,9 +78,9 @@ extern void __list_add(struct list_head *_new,
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-static inline void list_add(struct list_head *_new, struct list_head *head)
+static inline void list_add_head(struct list_head *entry, struct list_head *head)
 {
-	__list_add(_new, head, head->next);
+	__list_add(entry, head, head->next);
 }
 
 
@@ -94,9 +92,9 @@ static inline void list_add(struct list_head *_new, struct list_head *head)
  * Insert a new entry before the specified head.
  * This is useful for implementing queues.
  */
-static inline void list_add_tail(struct list_head *_new, struct list_head *head)
+static inline void list_add_tail(struct list_head *entry, struct list_head *head)
 {
-	__list_add(_new, head->prev, head);
+	__list_add(entry, head->prev, head);
 }
 
 /*
@@ -143,18 +141,18 @@ extern void list_del(struct list_head *entry);
  * If @old was empty, it will be overwritten.
  */
 static inline void list_replace(struct list_head *old,
-				struct list_head *_new)
+				struct list_head *entry)
 {
-	_new->next = old->next;
-	_new->next->prev = _new;
-	_new->prev = old->prev;
-	_new->prev->next = _new;
+	entry->next = old->next;
+	entry->next->prev = entry;
+	entry->prev = old->prev;
+	entry->prev->next = entry;
 }
 
 static inline void list_replace_init(struct list_head *old,
-					struct list_head *_new)
+					struct list_head *entry)
 {
-	list_replace(old, _new);
+	list_replace(old, entry);
 	INIT_LIST_HEAD(old);
 }
 
@@ -176,7 +174,7 @@ static inline void list_del_init(struct list_head *entry)
 static inline void list_move(struct list_head *list, struct list_head *head)
 {
 	__list_del_entry(list);
-	list_add(list, head);
+	list_add_tail(list, head);
 }
 
 /**
@@ -708,11 +706,11 @@ static inline void hlist_add_fake(struct hlist_node *n)
  * reference of the first entry if it exists.
  */
 static inline void hlist_move_list(struct hlist_head *old,
-				   struct hlist_head *_new)
+				   struct hlist_head *entry)
 {
-	_new->first = old->first;
-	if (_new->first)
-		_new->first->pprev = &_new->first;
+	entry->first = old->first;
+	if (entry->first)
+		entry->first->pprev = &entry->first;
 	old->first = NULL;
 }
 
