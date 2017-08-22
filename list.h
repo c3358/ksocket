@@ -34,7 +34,6 @@ struct list_head {
 	struct list_head *next, *prev;
 };
 
-#ifdef _USING_LIST_FUNCTIONS_
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
 
@@ -605,7 +604,6 @@ static inline void list_splice_tail_init(struct list_head *list,
 #define list_safe_reset_next(pos, n, member)				\
 	n = list_next_entry(pos, member)
 
-#endif
 
 /*
  * Double linked lists with a single pointer list head.

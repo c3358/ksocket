@@ -1,23 +1,4 @@
-#define _USING_LIST_FUNCTIONS_
-#include <stdio.h>
-#include <stdlib.h>
-#include <memory.h>
-#include <assert.h>
-#include <unistd.h>
-#include <uv.h>
-#ifndef _WIN32
-#include <sys/un.h>
-#endif
-#include "list.h"
 #include "ksocket.h"
-
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif /* MIN */
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif /* MAX */
-
 
 
 void INIT_KS_PROTOBYTE(struct ks_protobyte *protobyte)
@@ -438,7 +419,7 @@ void INIT_KS_PROTOBYTE_READER(struct ks_protobyte_reader *reader, void *data, si
     reader->npos = 0;
 }
 
-kboolean ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v)
+bool ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(unsigned char);
     
@@ -460,7 +441,7 @@ kboolean ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned cha
 }
 
 
-kboolean ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v)
+bool ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v)
 {
     size_t n = sizeof(char) + sizeof(char);    
     if((reader->pos + n) > reader->tail)
@@ -479,7 +460,7 @@ kboolean ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v)
 
 
 
-kboolean ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v)
+bool ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(unsigned char);
     if((reader->pos + n) > reader->tail)
@@ -497,7 +478,7 @@ kboolean ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned ch
 }
 
 
-kboolean ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v)
+bool ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(int32_t);
     if((reader->pos + n) > reader->tail)
@@ -516,7 +497,7 @@ kboolean ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v)
 
 
 
-kboolean ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v)
+bool ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(uint32_t);
     if((reader->pos + n) > reader->tail)
@@ -534,7 +515,7 @@ kboolean ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *
 }
 
 
-kboolean ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v)
+bool ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(int64_t);
     if((reader->pos + n) > reader->tail)
@@ -552,7 +533,7 @@ kboolean ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v)
 }
 
 
-kboolean ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v)
+bool ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(uint64_t);
     if((reader->pos + n) > reader->tail)
@@ -569,7 +550,7 @@ kboolean ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *
     return 1;
 }
 
-kboolean ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v)
+bool ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(float);
     if((reader->pos + n) > reader->tail)
@@ -587,7 +568,7 @@ kboolean ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v)
 }
 
 
-kboolean ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v)
+bool ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v)
 {
     size_t n = sizeof(unsigned char) + sizeof(double);
     if((reader->pos + n) > reader->tail)
@@ -604,7 +585,7 @@ kboolean ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v)
     return 1;
 }
 
-kboolean ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v)
+bool ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v)
 {
     size_t n = sizeof(unsigned char) + sizeof(int);
     int n_buflen;
@@ -633,7 +614,7 @@ kboolean ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v)
     return 1;
 }
 
-kboolean ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length)
+bool ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length)
 {
     size_t n = sizeof(unsigned char) + sizeof(int);
     int n_buflen;
@@ -661,7 +642,7 @@ kboolean ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, si
     return 1;
 }
 
-kboolean ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts)
+bool ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts)
 {
     int _nelts;
     uint32_t _size;
@@ -751,7 +732,7 @@ int64_t ks_buffer_addref(struct ks_buffer *buffer)
     return refcount;
 }
 
-kboolean ks_buffer_decref(struct ks_buffer *buffer)
+bool ks_buffer_decref(struct ks_buffer *buffer)
 {
     if (__sync_sub_and_fetch(&buffer->refcount, 1) <= 0)
     {
@@ -841,7 +822,7 @@ void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t l
     reader->pos = 0;
 }
 
-kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length)
+bool ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length)
 {
     size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
 
@@ -854,7 +835,7 @@ kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size
     return 0;
 }
 
-kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length)
+bool ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length)
 {
     size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
 
@@ -868,7 +849,7 @@ kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size
     return 0;
 }
 
-kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
+bool ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
 {
     if(reader->totalsize > position)
     {
@@ -879,7 +860,7 @@ kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position)
     return 0;
 }
 
-kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset)
+bool ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset)
 {
     size_t unread_bytes = ks_buffer_reader_unread_bytes(reader);
 
@@ -902,7 +883,7 @@ size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader)
     return reader->totalsize - reader->pos;
 }
 
-kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader)
+bool ks_buffer_reader_iseof(struct ks_buffer_reader *reader)
 {
     return reader->pos >= reader->totalsize;
 }
@@ -984,7 +965,7 @@ void ks_circular_buffer_queue_ks_buffer(struct ks_circular_buffer *circular_buff
     ks_circular_buffer_queue(circular_buffer, ks_buffer_getdata(buffer), ks_buffer_size(buffer));
 }
 
-kboolean ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size)
+bool ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size)
 {
     struct ks_circular_buffer_block *buffer;
     size_t nread;
@@ -1017,7 +998,7 @@ kboolean ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffe
     return 1;
 }
 
-kboolean ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size)
+bool ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size)
 {
     struct ks_circular_buffer_block *buffer;
     size_t nread;
@@ -1055,7 +1036,7 @@ kboolean ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_bu
     return 1;
 }
 
-kboolean ks_circular_buffer_empty(struct ks_circular_buffer *circular_buffer)
+bool ks_circular_buffer_empty(struct ks_circular_buffer *circular_buffer)
 {
     if (circular_buffer->usingsize == 0)
         return 1;
@@ -1112,9 +1093,9 @@ void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list
     uv_mutex_unlock(&locked_queue->mutex);
 }
 
-kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue)
+bool ks_locked_queue_empty(struct ks_locked_queue *locked_queue)
 {
-    kboolean is_empty;
+    bool is_empty;
 
     uv_mutex_lock(&locked_queue->mutex);
 
@@ -1279,7 +1260,7 @@ void ks_queue_thread_stop(struct ks_queue_thread *thread)
     }
 }
 
-kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
+bool ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
 {
     entry->flag = KS_QUEUE_THREAD_FLAG_POST;
 
@@ -1356,7 +1337,7 @@ void ks_table_destroy(struct ks_table *table)
     table->slots = NULL;
 }
 
-kboolean ks_table_insert(struct ks_table *table, uint64_t id, void *data)
+bool ks_table_insert(struct ks_table *table, uint64_t id, void *data)
 {
     uint32_t index;
     struct ks_table_slot *current, *new;
@@ -1398,7 +1379,7 @@ kboolean ks_table_insert(struct ks_table *table, uint64_t id, void *data)
     return 1;
 }
 
-kboolean ks_table_remove(struct ks_table *table, uint64_t id)
+bool ks_table_remove(struct ks_table *table, uint64_t id)
 {
     uint32_t index;
     struct ks_table_slot *current, *prev;
@@ -1523,7 +1504,7 @@ void INIT_KS_SOCKET_CONTAINER(struct ks_socket_container *container, uv_loop_t *
     }
 }
 
-kboolean ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr)
+bool ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr)
 {
     int namelen = sizeof(struct sockaddr);
     size_t bufferlen = sizeof(netadr->addr_unix.sun_path);
@@ -1545,7 +1526,7 @@ kboolean ks_socket_getsockname(const struct ks_socket_context *context, struct k
     return 0;
 }
 
-kboolean ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr)
+bool ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr)
 {
     int namelen = sizeof(struct sockaddr);
     size_t bufferlen = sizeof(netadr->addr_unix.sun_path);

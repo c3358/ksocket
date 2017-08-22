@@ -4,13 +4,31 @@
 #ifdef __cplusplus
 extern "C"
 {
-
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <memory.h>
+#include <assert.h>
+#include <unistd.h>
+#include <uv.h>
 
 #ifndef _WIN32
 #include <sys/un.h>
 #endif
-    
+
+#include "list.h"
+
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif /* MIN */
+
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif /* MAX */
+
 #ifdef _WIN32
 
 #define bzero ZeroMemory
@@ -23,8 +41,6 @@ struct  sockaddr_un {
 
 
 #endif
-
-typedef int kboolean;
 
 //套接字接收数据的缓冲区
 #define KS_SOCKET_CONTEXT_RDBUF_SIZE 4096
@@ -229,18 +245,18 @@ struct ks_protobyte_reader
 };
 
 void INIT_KS_PROTOBYTE_READER(struct ks_protobyte_reader *reader, void *data, size_t length);
-kboolean ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v);
-kboolean ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v);
-kboolean ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v);
-kboolean ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v);
-kboolean ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v);
-kboolean ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v);
-kboolean ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v);
-kboolean ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v);
-kboolean ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v);
-kboolean ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v);
-kboolean ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length);
-kboolean ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts);
+bool ks_protobyte_read_bool(struct ks_protobyte_reader *reader, unsigned char *v);
+bool ks_protobyte_read_char(struct ks_protobyte_reader *reader, char *v);
+bool ks_protobyte_read_uchar(struct ks_protobyte_reader *reader, unsigned char *v);
+bool ks_protobyte_read_int32(struct ks_protobyte_reader *reader, int32_t *v);
+bool ks_protobyte_read_uint32(struct ks_protobyte_reader *reader, uint32_t *v);
+bool ks_protobyte_read_int64(struct ks_protobyte_reader *reader, int64_t *v);
+bool ks_protobyte_read_uint64(struct ks_protobyte_reader *reader, uint64_t *v);
+bool ks_protobyte_read_float(struct ks_protobyte_reader *reader, float *v);
+bool ks_protobyte_read_double(struct ks_protobyte_reader *reader,double *v);
+bool ks_protobyte_read_string(struct ks_protobyte_reader *reader, char **v);
+bool ks_protobyte_read_blob(struct ks_protobyte_reader *reader, void **v, size_t *length);
+bool ks_protobyte_read_array(struct ks_protobyte_reader *reader, void **elts, size_t *size, int *nelts);
 
 
 struct ks_socket_context;
@@ -283,7 +299,7 @@ struct ks_socket_context
     struct ks_handle_s handle;
     
     //当前套接字是否为激活状态
-    kboolean active;
+    bool active;
     
     //当前连接的唯一id
     uint64_t uniqid;
@@ -340,7 +356,7 @@ struct ks_queue_thread
     struct ks_locked_queue output_locked_queue;
     struct ks_queue_thread_order exitorder;
     uv_loop_t *loop;
-    kboolean started;
+    bool started;
     uv_thread_t thread;
     uv_async_t async_notify;
     uv_sem_t semaphore;
@@ -445,7 +461,7 @@ struct ks_buffer_reader
 struct ks_buffer *ks_buffer_create();                                    //创建一个buffer
 void ks_buffer_destroy(struct ks_buffer *buffer);                        //直接释放buffer
 int64_t ks_buffer_addref(struct ks_buffer *buffer);                      //给buffer增加引用计数器
-kboolean ks_buffer_decref(struct ks_buffer *buffer);                     //减少这个buffer缓冲区的引用
+bool ks_buffer_decref(struct ks_buffer *buffer);                     //减少这个buffer缓冲区的引用
 void ks_buffer_write(struct ks_buffer *buffer, void *data, size_t size); //将数据写入buffer
 void *ks_buffer_getdata(struct ks_buffer *buffer);                       //获取buffer的数据指针
 size_t ks_buffer_size(struct ks_buffer *buffer);                         //获取buffer的大小
@@ -457,13 +473,13 @@ void ks_buffer_setsize(struct ks_buffer *buffer, size_t size);           //设�
  * ks_buffer_reader functions
  */
 void INIT_KS_BUFFER_READER(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length);
-kboolean ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position);
-kboolean ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset);
+bool ks_buffer_reader_peek(struct ks_buffer_reader *reader, void *data, size_t length);
+bool ks_buffer_reader_read(struct ks_buffer_reader *reader, void *data, size_t length);
+bool ks_buffer_reader_seek(struct ks_buffer_reader *reader, size_t position);
+bool ks_buffer_reader_ignore(struct ks_buffer_reader *reader, size_t offset);
 void *ks_buffer_reader_getpos(struct ks_buffer_reader *reader);
 size_t ks_buffer_reader_unread_bytes(struct ks_buffer_reader *reader);
-kboolean ks_buffer_reader_iseof(struct ks_buffer_reader *reader);
+bool ks_buffer_reader_iseof(struct ks_buffer_reader *reader);
 
 /**
  * ks_circular_buffer functions
@@ -473,9 +489,9 @@ void INIT_KS_CIRCULAR_BUFFER(struct ks_circular_buffer *circular_buffer);       
 void ks_circular_buffer_destroy(struct ks_circular_buffer *circular_buffer);                                    //销毁circular buffer
 void ks_circular_buffer_queue(struct ks_circular_buffer *circular_buffer, const void *data, size_t size);       //追加数据,并移动inpos
 void ks_circular_buffer_queue_ks_buffer(struct ks_circular_buffer *circular_buffer, struct ks_buffer *buffer);  //追加一个buffer,并移动inpos
-kboolean ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size);    //只获取数据
-kboolean ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size); //取出数据,并移动outpos
-kboolean ks_circular_buffer_empty(struct ks_circular_buffer *circular_buffer);
+bool ks_circular_buffer_peek_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size);    //只获取数据
+bool ks_circular_buffer_dequeue_array(struct ks_circular_buffer *circular_buffer, void *data, size_t size); //取出数据,并移动outpos
+bool ks_circular_buffer_empty(struct ks_circular_buffer *circular_buffer);
 void ks_circular_buffer_reset(struct ks_circular_buffer *circular_buffer); //重置circular buffer,释放多余的buffer block
 void ks_circular_buffer_addblock(struct ks_circular_buffer *circular_buffer);
 
@@ -484,8 +500,8 @@ void ks_circular_buffer_addblock(struct ks_circular_buffer *circular_buffer);
  */
 void INIT_KS_TABLE(struct ks_table *table, int max_slots);
 void ks_table_destroy(struct ks_table *table);
-kboolean ks_table_insert(struct ks_table *table, uint64_t id, void *data);
-kboolean ks_table_remove(struct ks_table *table, uint64_t id);
+bool ks_table_insert(struct ks_table *table, uint64_t id, void *data);
+bool ks_table_remove(struct ks_table *table, uint64_t id);
 void *ks_table_find(struct ks_table *table, uint64_t id);
 void ks_table_enum(struct ks_table *table, ks_table_callback cb, void *user_arg);
 
@@ -498,7 +514,7 @@ void ks_table_enum(struct ks_table *table, ks_table_callback cb, void *user_arg)
 void INIT_KS_LOCKED_QUEUE(struct ks_locked_queue *locked_queue);
 void ks_locked_queue_push_front(struct ks_locked_queue *locked_queue, struct list_head *entry);
 void ks_locked_queue_push_back(struct ks_locked_queue *locked_queue, struct list_head *entry);
-kboolean ks_locked_queue_empty(struct ks_locked_queue *locked_queue);
+bool ks_locked_queue_empty(struct ks_locked_queue *locked_queue);
 size_t ks_locked_queue_size(struct ks_locked_queue *locked_queue);
 struct list_head *ks_locked_queue_pop_front(struct ks_locked_queue *locked_queue);
 struct list_head *ks_locked_queue_pop_back(struct ks_locked_queue *locked_queue);
@@ -518,7 +534,7 @@ void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
 
 void ks_queue_thread_start(struct ks_queue_thread *thread);
 void ks_queue_thread_stop(struct ks_queue_thread *thread);
-kboolean ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry);
+bool ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry);
 size_t ks_socket_thread_input_size(struct ks_queue_thread *thread);
 size_t ks_socket_thread_output_size(struct ks_queue_thread *thread);
 void ks_queue_thread_destroy(struct ks_queue_thread *thread);
@@ -562,8 +578,8 @@ int ks_socket_stop(struct ks_socket_container *container);
 //获取一个服务器socket对象
 struct ks_socket_context *ks_socket_find(struct ks_socket_container *container, uint64_t uniqid);
 
-kboolean ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr);
-kboolean ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr);
+bool ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr);
+bool ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr);
 
 #ifdef __cplusplus
 };
