@@ -1,21 +1,35 @@
 
 
 
-TARGET = demo
-OBJECTS = ksocket.o demo.o
+TARGET = demo kdb
+OBJECTS = ksocket.o kdb.o
 
 
+MYSQL_CFLAGS = $(shell mysql_config --cflags)
+MYSQL_LIBS = $(shell mysql_config --libs)
+
+PKG_CFLAGS = $(shell pkg-config --cflags openssl jansson libuv) 
+PKG_LIBS = $(shell pkg-config --libs openssl jansson libuv)
+
+
+CFLAGS = -c -Werror -Wall -g $(MYSQL_CFLAGS) $(PKG_CFLAGS)
+LDFLAGS =   -lm $(MYSQL_LIBS) $(PKG_LIBS)
+
+CC = gcc
+
+%.o : %.c 
+	$(CC) $(CFLAGS) $< -o $@
 
 all : $(TARGET)
 
-$(TARGET) : $(OBJECTS)
-	gcc -o $(TARGET) -luv -L/usr/local/opt/libuv/lib $(OBJECTS)
+demo : $(OBJECTS) demo.o
+	gcc -o demo $(LDFLAGS) $(OBJECTS) demo.o
 
-ksocket.o : ksocket.c
-	gcc -o ksocket.o -I/usr/local/opt/libuv/include -c -O2 ksocket.c
+kdb: $(OBJECTS) main.o
+	gcc -o kdb $(LDFLAGS) $(OBJECTS) main.o
 
-demo.o : demo.c
-	gcc -o demo.o -I/usr/local/opt/libuv/include -c -O2 demo.c
+
+
 
 clean:
 	rm -rf *.o

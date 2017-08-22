@@ -70,17 +70,17 @@ void my_connected(struct ks_socket_container *container, struct ks_socket_contex
         
         ks_socket_buffer_derefernece(container, buffer);
         
-        fprintf(stderr, "client connected:%llu\n", context->uniqid);
+        fprintf(stderr, "client connected:%lu\n", context->uniqid);
     }
     else
     {
-        fprintf(stderr, "server connected:%llu\n", context->uniqid);
+        fprintf(stderr, "server connected:%lu\n", context->uniqid);
     }
 }
 
 void my_disconnected(struct ks_socket_container *container, struct ks_socket_context *context)
 {
-    fprintf(stderr, "disconnected:%llu\n", context->uniqid);
+    fprintf(stderr, "disconnected:%lu\n", context->uniqid);
 }
 
 void my_arrived(struct ks_socket_container *container, struct ks_socket_context *context, const char *data, ssize_t nread)
@@ -135,11 +135,11 @@ void my_arrived(struct ks_socket_container *container, struct ks_socket_context 
 
 void my_received(struct ks_socket_container *container, struct ks_socket_context *context, struct ks_buffer *buffer)
 {
-    struct my_header *hdr;
-    char *string;
-    hdr = ks_buffer_getdata(buffer);
+   // struct my_header *hdr;
+//    char *string;
+    //hdr = ks_buffer_getdata(buffer);
     
-    string = (char *)&hdr[1];
+   // string = (char *)&hdr[1];
     
     //printf("receive:%s\n", string);
     transmit_package++;
@@ -156,7 +156,7 @@ struct ks_socket_container socket_container;
 void on_timer(uv_timer_t *timer)
 {
     //ks_socket_stop(&socket_container);
-    fprintf(stderr, "transmit_package:%llu\n", transmit_package);
+    fprintf(stderr, "transmit_package:%lu\n", transmit_package);
 }
 
 struct ks_socket_callback callback =
@@ -343,10 +343,10 @@ void unit_test_protobyte_reader(void *data, size_t length)
     printf("ks_protobyte_read_uint32 -> %08x\n", v4);
 
     assert(ks_protobyte_read_int64(&sr, &v5));
-    printf("ks_protobyte_read_int64 -> %16llx\n", v5);
+    printf("ks_protobyte_read_int64 -> %16lx\n", v5);
 
     assert(ks_protobyte_read_uint64(&sr, &v6));
-    printf("ks_protobyte_read_uint64 -> %16llx\n", v6);
+    printf("ks_protobyte_read_uint64 -> %16lx\n", v6);
 
 
     assert(ks_protobyte_read_float(&sr, &v7));
