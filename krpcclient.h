@@ -24,12 +24,12 @@ struct ks_rpcc_context		//client network context
 
 typedef void (*ks_rpc_connstate)(struct ks_rpcc *rpcc, bool connected, bool is_connect_failed);
 typedef void (*ks_rpc_eventcallback)(struct ks_rpcc *rpcc, struct ks_rpcc_object *qobject);
-
+typedef void (*ks_rpc_eventcallback2)(struct ks_rpcc *rpcc, struct ks_rpcc_object *qobject, struct ks_buffer*buffer);
 struct ks_rpcc_cbs			//callbacks
 {
 	ks_rpc_connstate connstate;			//notify connection state
 	ks_rpc_eventcallback sendcallback;	//encoder callback & send buffer
-	ks_rpc_eventcallback recvcallback;	//recv buffer & decoder callback
+	ks_rpc_eventcallback2 recvcallback;	//recv buffer & decoder callback
 	ks_rpc_eventcallback eventcallback;	//process event
 	ks_rpc_eventcallback freecallback;		//free buffers
 };
@@ -37,20 +37,22 @@ struct ks_rpcc_cbs			//callbacks
 struct ks_rpcc 				//rpc client object
 {
 	struct ks_socket_container container;
-	struct ks_rpcc_context *context;
+	struct ks_socket_context *context;
 	uint64_t num_queue;
 	struct list_head queue;
-	struct ks_rpcc_cbs *callbacks;
+	struct ks_rpcc_cbs callbacks;
 	bool serverside_queue;
-	struct ks_remoteaddress *remoteaddress;
+	struct ks_remoteaddress remoteaddress;
 	uint64_t sessionid;
+	bool is_connected;
+	uv_loop_t *loop;
+	uv_timer_t timer;
+	bool is_started;
 };
 
 void INIT_KS_RPCC(struct ks_rpcc *rc,  uv_loop_t *loop, 
 							struct ks_remoteaddress *remoteaddress, 
 							struct ks_rpcc_cbs *callbacks, bool serverside_queue);
-
-void ks_rpc_client_destroy(struct ks_rpcc *rpcc);
 
 void ks_rpc_client_start(struct ks_rpcc *rpcc);
 void ks_rpc_client_stop(struct ks_rpcc *rpcc);
