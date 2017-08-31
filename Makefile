@@ -1,8 +1,8 @@
 
 
 
-TARGET = demo kdb krpcserver krpcclient
-OBJECTS = ksocket.o kdb.o krpcserver.o krpcclient.o
+TARGET = demo kdb 
+OBJECTS = ksocket.o kdb.o
 
 
 MYSQL_CFLAGS = $(shell mysql_config --cflags)
@@ -27,14 +27,6 @@ demo : $(OBJECTS) demo.o
 
 kdb: $(OBJECTS) main.o
 	gcc -o kdb $(LDFLAGS) $(OBJECTS) main.o
-
-krpcserver : $(OBJECTS) krpcserver_demo.o
-	gcc -o demo $(LDFLAGS) $(OBJECTS) krpcserver_demo.o
-
-krpcclient: $(OBJECTS) krpcclient_demo.o
-	gcc -o kdb $(LDFLAGS) $(OBJECTS) krpcclient_demo.o
-
-
 
 
 clean:

@@ -444,6 +444,8 @@ struct ks_socket_container
     
     int init_buffers_count;
     int init_writereq_count;
+
+    void *data;
 };
 
 struct ks_buffer_reader
@@ -544,6 +546,9 @@ void ks_queue_thread_destroy(struct ks_queue_thread *thread);
  * ks_socket_container functions
  */
 void INIT_KS_SOCKET_CONTAINER(struct ks_socket_container *container, uv_loop_t *loop, struct ks_socket_callback *callback, int max_connections, int initial_socket_count, int max_slots, int init_buffers_count, int init_writereq_count);
+
+//Must be stop!!!!!  
+void ks_socket_container_destroy(struct ks_socket_container *container);
 
 //socket context引用
 struct ks_socket_context *ks_socket_refernece(struct ks_socket_container *container, struct ks_socket_context *context);

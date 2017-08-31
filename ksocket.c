@@ -2380,3 +2380,37 @@ int ks_socket_stop(struct ks_socket_container *container)
     
     return 0;
 }
+
+void ks_socket_container_destroy(struct ks_socket_container *container)
+{
+    struct ks_writereq *wreq;
+    struct ks_buffer *buffer;
+    struct ks_socket_context *context;
+
+    assert(list_empty(&container->using_buffers));
+    assert(list_empty(&container->active_connections));
+
+    while(!list_empty(&container->writereq_buffers))
+    {
+        wreq = list_first_entry(&container->writereq_buffers, struct ks_writereq, entry);
+        list_del(&wreq->entry);
+        free(wreq);
+    }
+
+    while(!list_empty(&container->buffers))
+    {
+        buffer = list_first_entry(&container->buffers, struct ks_buffer, entry);
+        list_del(&buffer->entry);
+
+        ks_buffer_destroy(buffer);
+    }
+
+    while(!list_empty(&container->inactive_connections))
+    {
+        context = list_first_entry(&container->inactive_connections, struct ks_socket_context, entry);
+        list_del(&context->entry);
+        container->callback->socket_context_free(container, context);
+    }
+
+    ks_table_destroy(&container->connections);
+}

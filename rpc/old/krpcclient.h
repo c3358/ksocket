@@ -25,6 +25,7 @@ struct ks_rpcc_context		//client network context
 typedef void (*ks_rpc_connstate)(struct ks_rpcc *rpcc, bool connected, bool is_connect_failed);
 typedef void (*ks_rpc_eventcallback)(struct ks_rpcc *rpcc, struct ks_rpcc_object *qobject);
 typedef void (*ks_rpc_eventcallback2)(struct ks_rpcc *rpcc, struct ks_rpcc_object *qobject, struct ks_buffer*buffer);
+
 struct ks_rpcc_cbs			//callbacks
 {
 	ks_rpc_connstate connstate;			//notify connection state

@@ -16,8 +16,8 @@
  * non-initialized list entries.
  */
 #define POISON_POINTER_DELTA 0
-#define LIST_POISON1 ((void *) 0x00100100 + POISON_POINTER_DELTA)
-#define LIST_POISON2 ((void *) 0x00200200 + POISON_POINTER_DELTA)
+#define LIST_POISON1 ((unsigned char *) 0x00100100 + POISON_POINTER_DELTA)
+#define LIST_POISON2 ((unsigned char *) 0x00200200 + POISON_POINTER_DELTA)
 
 /*
  * Simple doubly linked list implementation.
