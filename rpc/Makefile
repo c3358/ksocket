@@ -21,11 +21,11 @@ CC = gcc
 
 all : $(TARGET)
 
-rpcclnt : ksocket.o rpc_client.o rpc_client_demo.o
-	$(CC) $(LDFLAGS) -o rpcclnt ksocket.o rpc_client.o rpc_client_demo.o
+rpcclnt : ksocket.o rpc_client.o rpc_client_demo.o helloworld.pb.o
+	$(CC) $(LDFLAGS) -o rpcclnt ksocket.o rpc_client.o rpc_client_demo.o helloworld.pb.o
 
-rpcsevr : ksocket.o rpc_server.o rpc_server_demo.o
-	$(CC) $(LDFLAGS) -o rpcsevr ksocket.o rpc_server.o rpc_server_demo.o
+rpcsevr : ksocket.o rpc_server.o rpc_server_demo.o helloworld.pb.o
+	$(CC) $(LDFLAGS) -o rpcsevr ksocket.o rpc_server.o rpc_server_demo.o helloworld.pb.o
 
 ksocket.o : ../ksocket.c ../ksocket.h
 	$(CC) -o ksocket.o $(CFLAGS) ../ksocket.c 

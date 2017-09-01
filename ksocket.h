@@ -332,6 +332,7 @@ struct ks_socket_context
 
 struct ks_locked_queue
 {
+    void *data;
     struct list_head head;
     size_t size;
     uv_mutex_t mutex;
@@ -344,14 +345,19 @@ struct ks_queue_thread_order
 {
     struct list_head entry;
     int flag;
+    struct ks_queue_thread *queue_thread;
+    void *data;
 };
 
-typedef void (*ks_queue_thread_processorder)(struct ks_queue_thread_order *order);
-typedef void (*ks_queue_thread_completeorder)(struct ks_queue_thread_order *order);
-typedef void (*ks_queue_thread_free_entry)(struct ks_queue_thread_order *order);
+// typedef void (*ks_queue_thread_processorder)(struct ks_queue_thread_order *order);
+// typedef void (*ks_queue_thread_completeorder)(struct ks_queue_thread_order *order);
+// typedef void (*ks_queue_thread_free_entry)(struct ks_queue_thread_order *order);
+
+typedef void (*ks_queue_thread_callback)(struct ks_queue_thread_order *order);
 
 struct ks_queue_thread
 {
+    void *data;
     struct ks_locked_queue input_locked_queue;
     struct ks_locked_queue output_locked_queue;
     struct ks_queue_thread_order exitorder;
@@ -360,9 +366,9 @@ struct ks_queue_thread
     uv_thread_t thread;
     uv_async_t async_notify;
     uv_sem_t semaphore;
-    ks_queue_thread_processorder processorder;
-    ks_queue_thread_completeorder completeorder;
-    ks_queue_thread_free_entry freeentry;
+    ks_queue_thread_callback processorder;
+    ks_queue_thread_callback completeorder;
+    ks_queue_thread_callback freeentry;
     size_t input_queue_maxcount;
 };
 
@@ -529,9 +535,9 @@ void ks_locked_queue_destroy(struct ks_locked_queue *locked_queue);
 void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
                             uv_loop_t *loop,
                             size_t input_queue_maxcount, 
-                            ks_queue_thread_processorder processorder,
-                            ks_queue_thread_completeorder completeorder,
-                            ks_queue_thread_free_entry freeentry
+                            ks_queue_thread_callback processorder,
+                            ks_queue_thread_callback completeorder,
+                            ks_queue_thread_callback freeentry
 );
 
 void ks_queue_thread_start(struct ks_queue_thread *thread);

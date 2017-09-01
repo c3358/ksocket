@@ -1214,9 +1214,9 @@ static void _ks_queue_thread_complete(uv_async_t *asyncnotify)
 void INIT_KS_QUEUE_THREAD(  struct ks_queue_thread *thread,
                             uv_loop_t *loop,
                             size_t input_queue_maxcount, 
-                            ks_queue_thread_processorder processorder,
-                            ks_queue_thread_completeorder completeorder,
-                            ks_queue_thread_free_entry freeentry
+                            ks_queue_thread_callback processorder,
+                            ks_queue_thread_callback completeorder,
+                            ks_queue_thread_callback freeentry
 )
 {
     INIT_KS_LOCKED_QUEUE(&thread->input_locked_queue);
@@ -1245,6 +1245,7 @@ void ks_queue_thread_start(struct ks_queue_thread *thread)
 
 void _ks_queue_thread_post(struct ks_queue_thread *thread, struct ks_queue_thread_order *entry)
 {
+    entry->queue_thread = thread;
     ks_locked_queue_push_back(&thread->input_locked_queue, &entry->entry);
     uv_sem_post(&thread->semaphore);
 }

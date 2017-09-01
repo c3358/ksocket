@@ -23,10 +23,10 @@
 class ks_rpc_client_proc
 {
 public:
-	ks_rpc_client_proc(uint16_t id);
+	ks_rpc_client_proc(uint32_t id);
 	virtual ~ks_rpc_client_proc();
 
-	uint16_t id();
+	uint32_t id();
 
 	virtual const ::google::protobuf::MessageLite &get_request() = 0;
 	virtual const ::google::protobuf::MessageLite &get_response() = 0;
@@ -39,7 +39,7 @@ public:
 	bool is_posted;
 
 private:
-	uint16_t _id;
+	uint32_t _id;
 };
 
 struct ks_rpc_client_context
@@ -56,8 +56,9 @@ public:
 
 	void start(struct ks_remoteaddress *remoteaddress);
 	void stop();
-	void call(ks_rpc_client_proc *object);
+	bool call(ks_rpc_client_proc *object);
 
+	virtual void connection_state(bool is_connected);
 	virtual void notify_callback(ks_rpc_client_proc *object) = 0;
 private:
 	void recv(struct ks_buffer *buffer);

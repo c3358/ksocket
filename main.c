@@ -8,7 +8,6 @@ void transaction()
 {
 	struct ks_db_value params[1];
 
-
 	if(!ks_db_begintransaction(&g_dbConnTest))
 	{
 		printf("transaction start failed. %s\n", g_dbConnTest.last_error);
@@ -326,7 +325,7 @@ void execute_procedure()
 		const char *nickname;
 		int32_t frozen;
 		uint32_t certified;
-		const char * certified_info;
+        const char *certified_info;
 		uint64_t steamid;
 		time_t bindsteamdate;
 		const char *ip;
