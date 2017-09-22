@@ -174,6 +174,11 @@ static inline my_ulonglong ks_db_result_num_rows(struct ks_db_result *result)
 	return result->num_rows;
 }
 
+static inline unsigned int ks_db_result_num_fields(struct ks_db_result *result)
+{
+	return result->field_count;
+}
+
 static inline struct ks_db_column** ks_db_result_rows(struct ks_db_result *result)
 {
 	return result->rows;
@@ -264,6 +269,23 @@ static inline struct ks_db_result* ks_db_resultset_current_result(struct ks_db_r
 bool ks_db_resultset_move_first(struct ks_db_resultset *rs);
 bool ks_db_resultset_move_next(struct ks_db_resultset *rs);
 bool ks_db_resultset_is_eof(struct ks_db_resultset *rs);
+
+static inline my_ulonglong ks_db_resultset_num_rows(struct ks_db_resultset *rs)
+{
+	if(rs->result == NULL)
+		return 0;
+
+	return ks_db_result_num_rows(rs->result);
+}
+
+static inline unsigned int ks_db_resultset_num_fields(struct ks_db_resultset *rs)
+{
+	if(rs->result == NULL)
+		return 0;
+
+//unsigned int ks_db_result_num_fields(struct ks_db_result *result)
+	return ks_db_result_num_fields(rs->result);
+}
 
 //found = index else -1
 unsigned int ks_db_resultset_find_field_index(struct ks_db_resultset *rs, const char *name);

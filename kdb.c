@@ -1206,7 +1206,7 @@ void ks_db_set_connect_timeout(struct ks_db *database, int timeout)
 bool ks_db_connect(struct ks_db *database)
 {
 	my_bool yes = 1;
-	my_bool no = 0;
+	//my_bool no = 0;
 
 	unsigned int clientFlags = CLIENT_BASIC_FLAGS;
 	
@@ -1227,7 +1227,7 @@ bool ks_db_connect(struct ks_db *database)
 	if (mysql_real_connect(&database->db, database->serverinfo.host, database->serverinfo.user, 
 		database->serverinfo.passwd, database->serverinfo.db, database->serverinfo.port, database->serverinfo.unix_socket, clientFlags))
 	{
-		mysql_autocommit(&database->db, no);
+		//mysql_autocommit(&database->db, no);
 		database->connected = 1;
 		return 1;
 	}

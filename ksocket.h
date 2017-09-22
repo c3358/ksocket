@@ -341,12 +341,18 @@ struct ks_locked_queue
 #define KS_QUEUE_THREAD_FLAG_EXIT 0
 #define KS_QUEUE_THREAD_FLAG_POST 1
 
+
+#define KS_QUEUE_THREAD_ORDER_FIELDS        \
+    struct list_head entry;                 \
+    int flag;                               \
+    struct ks_queue_thread *queue_thread;   \
+    int type;                               \
+    void *data;                             
+
+
 struct ks_queue_thread_order
 {
-    struct list_head entry;
-    int flag;
-    struct ks_queue_thread *queue_thread;
-    void *data;
+    KS_QUEUE_THREAD_ORDER_FIELDS
 };
 
 // typedef void (*ks_queue_thread_processorder)(struct ks_queue_thread_order *order);
@@ -553,7 +559,7 @@ void ks_queue_thread_destroy(struct ks_queue_thread *thread);
  */
 void INIT_KS_SOCKET_CONTAINER(struct ks_socket_container *container, uv_loop_t *loop, struct ks_socket_callback *callback, int max_connections, int initial_socket_count, int max_slots, int init_buffers_count, int init_writereq_count);
 
-//Must be stop!!!!!  
+//Must be stop!!!!!
 void ks_socket_container_destroy(struct ks_socket_container *container);
 
 //socket context引用
@@ -569,6 +575,30 @@ int ks_socket_addlistener_pipe(struct ks_socket_container *container, const char
 int ks_socket_connect_ipv4(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext);
 int ks_socket_connect_ipv6(struct ks_socket_container *container, const char *addr, int port, struct ks_socket_context **pcontext);
 int ks_socket_connect_pipe(struct ks_socket_container *container, const char *name, struct ks_socket_context **pcontext);
+
+
+static inline int ks_socket_connect(struct ks_socket_container *container, struct ks_remoteaddress *remoteaddress, struct ks_socket_context **pcontext)
+{
+    int err = 0;
+
+    switch(remoteaddress->type)
+    {
+        case KS_REMOTE_ADDRESS_PIPE:
+            err = ks_socket_connect_pipe(container, remoteaddress->host, pcontext);
+            break;
+        case KS_REMOTE_ADDRESS_IPV4:
+            err = ks_socket_connect_ipv4(container, remoteaddress->host, remoteaddress->port, pcontext);
+            break;
+        case KS_REMOTE_ADDRESS_IPV6:
+            err = ks_socket_connect_ipv6(container, remoteaddress->host, remoteaddress->port, pcontext);
+            break;
+        default:
+            err = 1;
+            break;
+    }
+
+    return err;
+}
 
 //ks_buffer对象池的引用
 struct ks_buffer *ks_socket_buffer_refernece(struct ks_socket_container *container, struct ks_buffer *buffer);
@@ -591,6 +621,134 @@ struct ks_socket_context *ks_socket_find(struct ks_socket_container *container, 
 
 bool ks_socket_getpeername(const struct ks_socket_context *context, struct ks_netadr *netadr);
 bool ks_socket_getsockname(const struct ks_socket_context *context, struct ks_netadr *netadr);
+
+
+//On success, a file descriptor for the new socket is returned.
+//On error, -1 is returned
+static inline int ks_connect(struct ks_remoteaddress *remoteaddress)
+{
+    int fd;
+    struct ks_netadr address;
+    int namelen;
+    struct sockaddr *addr;
+    int options;
+
+    switch(remoteaddress->type)
+    {
+        case KS_REMOTE_ADDRESS_PIPE:
+            fd = socket(PF_UNIX, SOCK_STREAM, 0);
+
+            address.addr_unix.sun_family = PF_UNIX;
+
+            strncpy(address.addr_unix.sun_path, remoteaddress->host, sizeof(address.addr_unix.sun_path));
+            address.addr_unix.sun_path[sizeof(address.addr_unix.sun_path) - 1] = '\0';
+
+            namelen = sizeof(address.addr_unix);
+            addr = (struct sockaddr *)&address.addr_unix;
+
+            break;
+        case KS_REMOTE_ADDRESS_IPV4:
+            fd = socket(AF_INET, SOCK_STREAM, 0);
+            uv_ip4_addr(remoteaddress->host, remoteaddress->port, &address.addr_ipv4);
+
+            namelen = sizeof(address.addr_ipv4);
+            addr = (struct sockaddr *)&address.addr_ipv4;
+            break;
+        case KS_REMOTE_ADDRESS_IPV6:
+            fd = socket(AF_INET6, SOCK_STREAM, 0);
+
+            uv_ip6_addr(remoteaddress->host, remoteaddress->port, &address.addr_ipv6);
+
+            namelen = sizeof(address.addr_ipv6);
+            addr = (struct sockaddr *)&address.addr_ipv6;
+            break;
+        default:
+            return -1;
+    }
+
+    if(fd == -1)
+        return -1;
+
+    if(connect(fd, addr, namelen) != 0)
+    {
+        close(fd);
+        return -1;
+    }
+
+#ifndef _WIN32
+    options = 1;
+    setsockopt(fd, SOL_TCP, TCP_NODELAY, &options, sizeof(options));
+
+//MacOS
+#ifndef __APPLE__
+    options = 0;
+    setsockopt(fd, SOL_TCP, TCP_CORK, &options, sizeof(options));
+#endif
+
+#else
+    options = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &options, sizeof(options));
+#endif
+
+    return fd;
+}
+
+
+static inline ssize_t ks_recv(int sockfd, void *buf, size_t len, int flags)
+{
+    ssize_t n;
+    ssize_t nread, nlast;
+    void *ptr;
+
+    nread = 0;
+
+    do
+    {
+        ptr = buf + nread;
+        nlast = len - nread;
+
+        n = recv(sockfd, ptr, nlast, flags);
+
+        if(n == -1 || n == 0)
+        {
+            return n;
+        }
+
+        nread += n;
+
+
+    } while(nread < len);
+
+    return n;
+}
+
+
+static inline ssize_t ks_send(int sockfd, const void *buf, size_t len, int flags)
+{
+    ssize_t nsent, nlast;
+    ssize_t n;
+    const void *ptr;
+
+    nsent = 0;
+
+    do
+    {
+        ptr = buf + nsent;
+        nlast = len - nsent;
+
+        n = send(sockfd, ptr, nlast, flags);
+
+        if(n == -1 || n == 0)
+        {
+            return n;
+        }
+
+        nsent += n;
+
+    } while(nsent < len);
+
+    return nsent;
+}
 
 #ifdef __cplusplus
 };
